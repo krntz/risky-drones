@@ -102,6 +102,8 @@ def echo(sock):
             # if the participant ran out of time, move to next trial
             experiment_trial += 1
 
+            # TODO: mark in participant .csv that the trial was failed
+
             continue
 
         if cf.swarm_flying:
@@ -129,6 +131,7 @@ def echo(sock):
                                   2.,
                                   True)
             elif action == 'land':
+                # TODO:
                 # 1. land drone
                 # 2. check if the drone is inside a point
                 #    a. if drone is inside the closest point, increase score
@@ -140,73 +143,17 @@ def echo(sock):
                 # 5. move drone back to home
                 # 6. start next trial
 
+                # TODO: Store participant score, time to complete, and
+                # avg. time per action for each trial
+
                 cf.swarm_land()
 
-                if is_close_to_point():
-                    sock.send(json.dumps(
-                        {'action': 'score', 'value': score}))
-
-                    if goal_reached:
-                        time.sleep(2)
-
-                        if experiment_trial == 0:
-                            sock.send(json.dumps({
-                                'action': 'goal',
-                                'message': 'You have completed the first part of this experiment.<br/> You have earned <strong>' +
-                                str(score) +
-                                '</strong> SEK in this flight session! You can now do the first part of the survey. When you are done with the first part of the survey, the supervisor will change your drone.'
-                            }))
-
-                            print('...landing, please wait')
-                            move_home()
-                            cf.swarm_land()
-
-                            break
-                        elif experiment_trial == num_trials - 1:
-                            sock.send(json.dumps({
-                                'action': 'finish',
-                                'message': 'Last part of experiment is now finished. You have earned <strong>' +
-                                str(score) +
-                                '</strong> SEK this flight session! Please finish the survey.'
-                            }))
-
-                            print('...landing, please wait')
-                            move_home()
-                            cf.swarm_land()
-
-                            break
-                        else:
-                            break
-
-                    if destination_index == 1:
-                        sock.send(json.dumps({
-                            'action': 'goal',
-                            'message': 'Destination reached! First flight finished! ... Going back to home base.'
-                        }))
-
-                        time.sleep(3)
-                        move_home()
-                    else:
-                        sock.send(json.dumps({
-                            'action': 'goal',
-                            'message': 'Destination reached! ... Going back to home base. '
-                        }))
-
-                        time.sleep(3)
-                        move_home()
-
-                    cf.swarm_land()
-                    start_time = time.time()
-
-                    continue
-
         else:
-            if action == 'move':
-                direction = data['direction']
 
-                if direction == 'take off':
-                    print("taking off")
-                    cf.swarm_take_off()
+            # if drone has not taken off
+
+            if action == 'take off':
+                cf.swarm_take_off()
 
     sock.send(json.dumps(
         {'action': 'finish', 'message': 'Destination reached! Well done! Going back to homebase.'}))
@@ -243,5 +190,7 @@ if __name__ == '__main__':
 
     app.config['condition'] = args.condition
     app.config['id'] = args.id
+
+    # TODO: Create .csv file for each participant with name <id>.csv
 
     app.run()
