@@ -5,113 +5,8 @@
         <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/mystyle.css') }}"> 
     </head>
 
-    <script type="text/javascript">
-
-        var socket = new WebSocket('ws://' + location.host + '/action');
-        socket.addEventListener('open', function (event) {
-            console.log("[open] Connection established");
-        });
-
-        socket.addEventListener('message', function (event) {
-            var data = JSON.parse(event.data);
-            switch(data.action){
-                case 'score':
-                    document.getElementById('score').textContent = + data.value;
-                    break;
-                case 'finish':
-                    document.getElementById('surveyText').innerHTML = data.message;
-                    document.getElementById('surveyModal').style.display = 'block';
-                    break;
-                case 'failure':
-                    document.getElementById('failureText').innerHTML = data.message;
-                    document.getElementById('failureAlert').style.display = 'block';
-                    setTimeout(function () {
-                        failureAlert.style.display = 'none';
-                    }, 8000);
-                    break;
-                case 'welcome':
-                    document.getElementById('alertText').innerHTML = data.message;
-                    document.getElementById('customAlert').style.display = 'block';
-                    setTimeout(function () {
-                        customAlert.style.display = 'none';
-                    }, 8000);
-                    break;
-                case 'goal':
-                    document.getElementById('alertText').innerHTML = data.message;
-                    document.getElementById('customAlert').style.display = 'block';
-                    setTimeout(function () {
-                        customAlert.style.display = 'none';
-                    }, 3000);
-                    break;
-                default:
-                    console.log("recieved unknown action type: " + data.action);
-            }
-
-        });
-        function hideAllButtons(duration) {
-            // Get all buttons
-            var buttons = document.querySelectorAll("button");
-
-            // Add a 'hide' class to all buttons
-            buttons.forEach(function(btn) {
-                btn.classList.add("hide");
-            });
-
-            // Remove the 'hide' class after duration
-            setTimeout(function() {
-                buttons.forEach(function(btn) {
-                    btn.classList.remove("hide");
-                });
-            }, duration);
-        }
-
-        function sendMessage(actionType, parameter) {
-            var message = "";
-            switch(actionType) {
-                case 'move':
-                    message = JSON.stringify(
-                        { "action": actionType, "direction": parameter }
-                    );
-
-                    hideAllButtons(2000);
-
-                    break;
-                case 'take off':
-                    message = JSON.stringify(
-                        { "action": actionType }
-                    );
-
-                    document.getElementById('tolBtn').value = "land";
-                    document.getElementById('tolBtn').innerHTML = "Land";
-
-                    hideAllButtons(2000);
-
-                    break;
-                case 'land':
-                    message = JSON.stringify(
-                        { "action": actionType }
-                    );
-
-                    document.getElementById('tolBtn').value = "Take Off";
-                    document.getElementById('tolBtn').innerHTML = "Take Off";
-
-                    hideAllButtons(2000);
-
-                    break;
-                case 'failed trial':
-                    message = JSON.stringify(
-                        { "action": actionType }
-                    );
-
-                    hideAllButtons(2000);
-
-                    break;
-                default:
-                    console.log("trying to send unknown action type: " + actionType); 
-            }
-            socket.send(message); // Send the message to the server
-        }
-    </script>
+    <script src="{{url_for('static', filename='serverCommunication.js')}}"></script>
+    <script src="{{url_for('static', filename='timer.js')}}"></script>
     <body>
         <div id="log"></div>
         <br>
@@ -119,8 +14,26 @@
         <div class="container">
 
             <div class="button-container">
-                <div class="stopwatchcontainer">
-                    <span id="stopwatch" >Time: --:--</span>
+                <div class="base-timer">
+                    <svg class="base-timer__svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <g class="base-timer__circle">
+                        <circle class="base-timer__path-elapsed" cx="50" cy="50" r="45"></circle>
+                        <path
+                                id="base-timer-path-remaining"
+                                stroke-dasharray="283"
+                                class="base-timer__path-remaining green"
+                                d="
+                                   M 50, 50
+                                   m -45, 0
+                                   a 45,45 0 1,0 90,0
+                                   a 45,45 0 1,0 -90,0
+                                   "
+                                ></path>
+                        </g>
+                    </svg>
+                    <span id="base-timer-label" class="base-timer__label">
+                        0:00
+                    </span>
                 </div>
                 <div class="score-container">
                     <div id="score">--</div>
@@ -161,40 +74,5 @@
                 <p id="surveyText"></p>
             </div>
         </div>
-        <script>
-            var stopwatchDisplay = document.getElementById('stopwatch');
-            var minutes = 1;
-            var seconds = 30;
-            // Update the stopwatch display every second
-            var countdownInterval = setInterval(function() {
-                if (minutes === 0 && seconds === 0) {
-                    // Timer has reached 0:00, handle the countdown completion here
-                    clearInterval(countdownInterval);
-                    var time = padZero(minutes) + ':' + padZero(seconds);
-                    stopwatchDisplay.textContent = 'Time: ' + time;
-                    // Add your desired code to execute when the countdown reaches 0:00
-                    stopwatchDisplay.classList.add('blinking');
-
-                    sendMessage("failed trial"); // let the server know the trial failed
-
-                    return;
-                }
-                // Format the time as MM:SS
-                var time = padZero(minutes) + ':' + padZero(seconds);
-                // Update the stopwatch display
-                stopwatchDisplay.textContent = 'Time: ' + time;
-                // Decrement the seconds
-                if (seconds > 0) {
-                    seconds--;
-                } else {
-                    seconds = 59;
-                    minutes--;
-                }
-            }, 1000);
-            // Helper function to pad a single digit number with a leading zero
-            function padZero(num) {
-                return (num < 10 ? '0' : '') + num;
-            }
-        </script>
     </body>
 </html>
