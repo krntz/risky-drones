@@ -4,12 +4,12 @@
 .directional-buttons {
   /* Define the size of the grid */
   /* Other things rely on this! Change at your own peril! */
-  width: 16rem;
-  height: 16rem;
+  width: 28rem;
+  height: 28rem;
   /* display the buttons in a grid */
   display: grid;
   /* leave a little gap between columns/rows */
-  grid-gap: 0.5rem;
+  grid-gap: 1.5rem;
   /* define a 3 x 3 grid with middle column/row larger */
   grid-template-columns: 45fr 60fr 45fr;
   grid-template-rows: 45fr 60fr 45fr;
@@ -52,8 +52,8 @@
   /* make the triangle able to be moved around relative to the button */
   position: absolute;
   /* approximately makes the diagonal the right size */
-  width: 4.25rem;
-  height: 4.25rem;
+  width: 7rem;
+  height: 7rem;
   /* rotate the square (to look like a triangle) */
   transform: rotate(45deg);
   /* use the current color value for the background to match the button */
@@ -94,9 +94,9 @@
 }
 .up:before {
   /* center the overlapping triangle horizontally */
-  left: calc(50% - 2.125rem);
+  left: calc(50% - 3.5rem);
   /* position it so it overlaps just right */
-  bottom: -2.125rem;
+  bottom: -3.5rem;
 }
 .up:after {
   /* do the border-based triangle trick */
@@ -115,9 +115,9 @@
 }
 .left:before {
   /* position it so it overlaps just right */
-  right: -2.125rem;
+  right: -3.5rem;
   /* center the overlapping triangle vertically */
-  top: calc(50% - 2.125rem);
+  top: calc(50% - 3.5rem);
 }
 .left:after {
   /* do the border-based triangle trick */
@@ -136,9 +136,9 @@
 }
 .right:before {
   /* position it so it overlaps just right */
-  left: -2.125rem;
+  left: -3.5rem;
   /* center the overlapping triangle vertically */
-  top: calc(50% - 2.125rem);
+  top: calc(50% - 3.5rem);
 }
 .right:after {
   /* do the border-based triangle trick */
@@ -157,9 +157,9 @@
 }
 .down:before {
   /* center the overlapping triangle horizontally */
-  left: calc(50% - 2.125rem);
+  left: calc(50% - 3.5rem);
   /* position it so it overlaps just right */
-  top: -2.125rem;
+  top: -3.5rem;
 }
 .down:after {
   /* do the border-based triangle trick */
