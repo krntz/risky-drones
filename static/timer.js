@@ -17,7 +17,7 @@ const COLOR_CODES = {
     }
 };
 
-const TIME_LIMIT = 20;
+const TIME_LIMIT = 20; /* seconds */
 let timePassed = 0;
 let timeLeft = TIME_LIMIT;
 let timerInterval = null;
@@ -25,10 +25,15 @@ let remainingPathColor = COLOR_CODES.info.color;
 
 function onTimesUp() {
     clearInterval(timerInterval);
+
+    sendMessage("failed trial"); /* let server know the trial has failed */
 }
 
 function startTimer() {
     setCircleDasharray(TIME_LIMIT-1);
+
+    timeLeft = TIME_LIMIT;
+
     timerInterval = setInterval(() => {
         timePassed = timePassed += 1;
         timeLeft = TIME_LIMIT - timePassed;

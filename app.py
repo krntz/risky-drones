@@ -102,6 +102,7 @@ def echo(sock):
 
         if action == 'failed trial':
             # if the participant ran out of time, move to next trial
+            move_home()
             experiment_trial += 1
 
             # TODO: mark in participant .csv that the trial was failed
@@ -132,6 +133,8 @@ def echo(sock):
                                   None,
                                   2.,
                                   True)
+                else:
+                    raise RuntimeError("Unknown direction: " + direction)
             elif action == 'land':
                 # TODO:
                 # 1. land drone
@@ -149,6 +152,8 @@ def echo(sock):
                 # avg. time per action for each trial
 
                 cf.swarm_land()
+            else:
+                raise RuntimeError("Illegal action: " + action)
 
         else:
 
@@ -156,6 +161,8 @@ def echo(sock):
 
             if action == 'take off':
                 cf.swarm_take_off()
+            else:
+                raise RuntimeError("Illegal action: " + action)
 
     sock.send(json.dumps(
         {'action': 'finish', 'message': 'Destination reached! Well done! Going back to homebase.'}))
