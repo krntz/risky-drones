@@ -53,6 +53,8 @@ def move_home():
 def recieve_data(sock):
     data = sock.receive()
 
+    logger.debug(data)
+
     if isinstance(data, str):
         json_data = json.loads(data)
 

@@ -45,6 +45,7 @@ socket.addEventListener('message', function (event) {
     }
 
 });
+
 function hideAllButtons(duration) {
     // Get all buttons
     var buttons = document.querySelectorAll("button");
@@ -91,7 +92,7 @@ function sendMessage(actionType, parameter) {
                 { "action": actionType }
             );
 
-            document.getElementById('tolBtn').value = "Take Off";
+            document.getElementById('tolBtn').value = "take off";
             document.getElementById('tolBtn').innerHTML = "Take Off";
 
             stopTimer();
