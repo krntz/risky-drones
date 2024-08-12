@@ -1,24 +1,23 @@
 import argparse
 import logging
 import math
-import pickle
 from pathlib import Path
-from collections import namedtuple
 from turtle import Screen, Turtle
+
+from points_helper import Point, write_to_file
 
 logger = logging.getLogger(__name__)
 
-Point = namedtuple("Point", "x y")
 
-def generate_points(width, height, num_arcs, num_points, offset):
-    logger.debug("Generating points on plane of dimensions ({} {}), with {} arcs and {} points per arc, with {} offset".format(width, height, num_arcs, num_points, offset))
+def generate_points(height, num_arcs, num_points, offset):
+    # TODO: This doesn't evenly distribute the points along the arc?
+    # The first point is further down than the last one...
 
     points = []
 
     for a in range(num_arcs):
         row = []
 
-        # TODO: This only works for planes that are wider than they are tall
         radius = (height/2) / num_arcs * (a+1)
 
         points_separation = 180/num_points
@@ -34,10 +33,9 @@ def generate_points(width, height, num_arcs, num_points, offset):
     return points
 
 
-
-def visualize_points(points, width, height, num_arcs):
+def visualize_points(points, height, num_arcs):
     screen = Screen()
-    screen.setup(1024, 1024)
+    screen.setup()
     screen.colormode(255)
 
     turtle = Turtle(visible=False)
@@ -47,20 +45,17 @@ def visualize_points(points, width, height, num_arcs):
     for a in range(num_arcs):
         radius = (height/2)/num_arcs * (a+1)
 
-        turtle.teleport(radius, 0)
+        turtle.teleport(radius*5, 0)
         turtle.setheading(90)
-        turtle.circle(radius, 180)
+        turtle.circle(radius*5, 180)
 
     for row in points:
         for point in row:
-            turtle.teleport(point.x, point.y)
+            turtle.teleport(point.x*5, point.y*5)
             turtle.dot(15, 'blue')
 
     screen.exitonclick()
 
-def write_to_file(points, filename):
-    with open("test", "wb") as fp:
-        pickle.dump(points, fp)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
@@ -115,10 +110,21 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    points = generate_points(args.width, args.height, args.num_arcs, args.num_points, args.offset_degrees)
+    if args.width < args.height:
+        raise ValueError(
+            "The width of the plane must be at least equal to its height")
+
+    logger.debug("Generating points on plane of dimensions ({} {}), with {} arcs and {} points per arc, with {} offset".format(args.width,
+                                                                                                                               args.height,
+                                                                                                                               args.num_arcs,
+                                                                                                                               args.num_points,
+                                                                                                                               args.offset_degrees))
+
+    points = generate_points(args.height, args.num_arcs,
+                             args.num_points, args.offset_degrees)
 
     if args.visualize:
-        visualize_points(points, args.width, args.height, args.num_arcs)
+        visualize_points(points, args.height, args.num_arcs)
 
     if args.output_file:
         write_to_file(points, args.output_file)
