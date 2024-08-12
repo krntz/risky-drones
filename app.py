@@ -6,6 +6,7 @@ import random
 import sys
 import time
 from operator import truediv
+from pathlib import Path
 
 from flask import Flask, render_template
 from flask_sock import Sock
@@ -13,41 +14,30 @@ from flask_sock import Sock
 from controllers.crazyflieController import CrazyflieController
 from controllers.simulatedController import SimulatedController
 from controllers.utils.utils import FlightZone
+from points_helper import Point, read_from_file
 
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 sock = Sock(app)
 
-
-class Destination:
-    def __init__(self, name, easy_location, hard_location, default_location):
-        self.name = name
-        self.easy_location = easy_location
-        self.hard_location = hard_location
-        self.default_location = default_location
-
-
 # Destinations have a name, easy_location, hard_location
-destinations = [
-    Destination("A", [0.60, 0.3, .5], [0.6, -0.3, .5], [1., 0, 0.5]),
-    Destination("D", [0.3, -0.6, .5], [-0.3, -0.6, .5], [0, -1.0, .5]),
-    Destination("B", [-0.6, 0.60, .4], [0.3, 0.6, .5], [0, 1., .5]),
-    Destination("C", [-0.6, -0.3, .5], [-0.6, 0.3, .5], [-1., 0.0, .5])
-]
-
-score = 0  # participant's total score
-
-num_trials = 10
+destinations = []
 
 
-def move_home():
-    drone_position = cf.positions[drone_uri]
+NUM_TRIALS = 10
+DRONE_URI = 'radio://0/80/2M/E7E7E7E7E0'
+MOVE_DISTANCE = 0.10
+FLIGHT_ZONE = FlightZone(2.0, 3.0, 1.25, 0.3)
+
+
+def move_home(cf):
+    drone_position = cf.positions[DRONE_URI]
     drone_position[0] = -(drone_position[0])
     drone_position[1] = -(drone_position[1])
     drone_position[2] = 0
 
-    cf.swarm_move({drone_uri: drone_position}, None, 2, True)
+    cf.swarm_move({DRONE_URI: drone_position}, None, 2, True)
 
 
 def recieve_data(sock):
@@ -81,18 +71,15 @@ def echo(sock):
         'message': 'Welcome! This is your first flight.'
     }))
 
-    move_distance = 0.10
-
-    drone_uri = 'radio://0/80/2M/E7E7E7E7E0'
-    flight_zone = FlightZone(2.0, 3.0, 1.25, 0.3)
-    cf = SimulatedController({drone_uri}, flight_zone, drone_uri)
+    cf = SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
 
     experiment_trial = 0
+    score = 0
 
     start_time = time.time()
     start_time_action = time.time()
 
-    while experiment_trial < num_trials:
+    while experiment_trial < NUM_TRIALS:
         data = recieve_data(sock)
 
         # Log movement
@@ -102,7 +89,7 @@ def echo(sock):
 
         if action == 'failed trial':
             # if the participant ran out of time, move to next trial
-            move_home()
+            move_home(cf)
             experiment_trial += 1
 
             # TODO: mark in participant .csv that the trial was failed
@@ -114,22 +101,22 @@ def echo(sock):
                 direction = data['direction']
 
                 if direction == 'forward':
-                    cf.swarm_move({drone_uri: [move_distance, 0, 0]},
+                    cf.swarm_move({DRONE_URI: [MOVE_DISTANCE, 0, 0]},
                                   None,
                                   2.,
                                   True)
                 elif direction == 'back':
-                    cf.swarm_move({drone_uri: [-move_distance, 0, 0]},
+                    cf.swarm_move({DRONE_URI: [-MOVE_DISTANCE, 0, 0]},
                                   None,
                                   2.,
                                   True)
                 elif direction == 'left':
-                    cf.swarm_move({drone_uri: [0, move_distance, 0]},
+                    cf.swarm_move({DRONE_URI: [0, MOVE_DISTANCE, 0]},
                                   None,
                                   2.,
                                   True)
                 elif direction == 'right':
-                    cf.swarm_move({drone_uri: [0, -move_distance, 0]},
+                    cf.swarm_move({DRONE_URI: [0, -MOVE_DISTANCE, 0]},
                                   None,
                                   2.,
                                   True)
@@ -190,6 +177,13 @@ if __name__ == '__main__':
                         default='movements.log',
                         help='File into which to write the log')
 
+    parser.add_argument('-p',
+                        '--points-file',
+                        dest='pointsFile',
+                        type=Path,
+                        default='points.bin',
+                        help='The generated file with points to use')
+
     args = parser.parse_args()
 
     logging.basicConfig(format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
@@ -199,6 +193,8 @@ if __name__ == '__main__':
 
     app.config['condition'] = args.condition
     app.config['id'] = args.id
+
+    destinations = read_from_file(args.pointsFile)
 
     # TODO: Create .csv file for each participant with name <id>.csv
 
