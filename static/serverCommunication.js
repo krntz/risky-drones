@@ -9,10 +9,6 @@ socket.addEventListener('message', function (event) {
         case 'score':
             document.getElementById('score').textContent = + data.value;
             break;
-        case 'finish':
-            document.getElementById('surveyText').innerHTML = data.message;
-            document.getElementById('surveyModal').style.display = 'block';
-            break;
         case 'failure':
             document.getElementById('failureText').innerHTML = data.message;
             document.getElementById('failureAlert').style.display = 'block';
@@ -21,16 +17,19 @@ socket.addEventListener('message', function (event) {
             }, 8000);
             break;
         case 'alert':
-            document.getElementById('alertText').innerHTML = data.message;
-            document.getElementById('customAlert').style.display = 'block';
 
             switch(data.type) {
                 case 'no takeoff':
+                    document.getElementById('alertText').innerHTML = data.message;
+                    document.getElementById('customAlert').style.display = 'block';
+
                     document.getElementById('tolBtn').value = "take off";
                     document.getElementById('tolBtn').innerHTML = "Take Off";
 
                     break;
                 case 'na':
+                    document.getElementById('alertText').innerHTML = data.message;
+                    document.getElementById('customAlert').style.display = 'block';
                     break;
                 default:
                     console.log("Recieved unknown type: " + data.type);
