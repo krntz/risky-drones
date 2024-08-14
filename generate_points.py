@@ -111,6 +111,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    # TODO: At some point I want to remove this requirement
+
     if args.width < args.height:
         raise ValueError(
             "The width of the plane must be at least equal to its height")
