@@ -9,50 +9,50 @@ from points_helper import Point, write_to_file
 logger = logging.getLogger(__name__)
 
 
-def generate_points(height, num_arcs, num_points, offset):
-    # TODO: This doesn't evenly distribute the points along the arc?
-    # The first point is further down than the last one...
-
+def generate_points(radius, num_arcs, num_points, offset):
     points = []
 
     for a in range(num_arcs):
         row = []
 
-        radius = (height/2) / num_arcs * (a+1)
-
-        points_separation = 180/num_points
+        # need to subtract one to account for the first point
+        points_separation = math.radians(180 / (num_points - 1))
 
         for p in range(num_points):
-            rotation = offset + (points_separation*p)
-            x = radius * math.cos(rotation)
-            y = radius * math.sin(rotation)
+            rotation = p * points_separation
+
+            x = radius * (a + 1) * math.cos(rotation)
+            y = radius * (a + 1) * math.sin(rotation)
 
             row.append(Point(x, y))
+
         points.append(row)
 
     return points
 
 
-def visualize_points(points, height, num_arcs):
+def visualize_points(points, radius, num_arcs):
     screen = Screen()
     screen.setup()
     screen.colormode(255)
 
     turtle = Turtle(visible=False)
     turtle.speed('fastest')
-    turtle.width(5)
+    scale = 5
+    turtle.width(scale)
+
+    turtle.teleport(0, 0)
+    turtle.dot(scale * 3, 'red')
 
     for a in range(num_arcs):
-        radius = (height/2)/num_arcs * (a+1)
-
-        turtle.teleport(radius*5, 0)
+        turtle.teleport(radius * (a + 1) * scale, 0)
         turtle.setheading(90)
-        turtle.circle(radius*5, 180)
+        turtle.circle(radius * (a + 1) * scale, 180)
 
     for row in points:
         for point in row:
-            turtle.teleport(point.x*5, point.y*5)
-            turtle.dot(15, 'blue')
+            turtle.teleport(point.x * scale, point.y * scale)
+            turtle.dot(scale * 3, 'blue')
 
     screen.exitonclick()
 
@@ -114,17 +114,18 @@ if __name__ == '__main__':
         raise ValueError(
             "The width of the plane must be at least equal to its height")
 
-    logger.debug("Generating points on plane of dimensions ({} {}), with {} arcs and {} points per arc, with {} offset".format(args.width,
-                                                                                                                               args.height,
-                                                                                                                               args.num_arcs,
-                                                                                                                               args.num_points,
-                                                                                                                               args.offset_degrees))
+    logger.debug("Generating points on plane of dimensions ({}, {}), with {} arc(s) and {} point(s) per arc, with {} offset".format(args.width,
+                                                                                                                                    args.height,
+                                                                                                                                    args.num_arcs,
+                                                                                                                                    args.num_points,
+                                                                                                                                    args.offset_degrees))
+    radius = (args.height / 2) / args.num_arcs
 
-    points = generate_points(args.height, args.num_arcs,
+    points = generate_points(radius, args.num_arcs,
                              args.num_points, args.offset_degrees)
 
     if args.visualize:
-        visualize_points(points, args.height, args.num_arcs)
+        visualize_points(points, radius, args.num_arcs)
 
     if args.output_file:
         write_to_file(points, args.output_file)
