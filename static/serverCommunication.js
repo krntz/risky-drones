@@ -30,6 +30,8 @@ socket.addEventListener('message', function (event) {
                     document.getElementById('tolBtn').innerHTML = "Take Off";
 
                     break;
+                case 'na':
+                    break;
                 default:
                     console.log("Recieved unknown type: " + data.type);
             }

@@ -40,6 +40,12 @@ def move_home(cf):
     cf.swarm_move({DRONE_URI: drone_position}, None, 2, True)
 
 
+def send_data(sock, action, message, data_type='na'):
+    sock.send(json.dumps({'action': action,
+                          'type': data_type,
+                          'message': message}))
+
+
 def recieve_data(sock):
     data = sock.receive()
 
@@ -66,10 +72,9 @@ def echo(sock):
     global score
     global goal_reached
 
-    sock.send(json.dumps({
-        'action': 'welcome',
-        'message': 'Welcome! This is your first flight.'
-    }))
+    send_data(sock,
+              action='alert',
+              message='Welcome! This is your first flight.')
 
     cf = SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
 
@@ -149,16 +154,16 @@ def echo(sock):
             if action == 'take off':
                 cf.swarm_take_off()
             elif action == 'move':
-                sock.send(json.dumps({'action': 'alert',
-                                      'type': 'no takeoff',
-                                      'message': "Please take off before attempting to move!"}))
+                send_data(sock,
+                          action='alert',
+                          data_type='no takeoff',
+                          message='Please take off before attempting to move!')
             else:
                 raise RuntimeError("Illegal action: " + action)
 
-    sock.send(json.dumps(
-        {'action': 'alert',
-         'type': 'finish',
-         'message': 'Destination reached! Well done! Going back to homebase.'}))
+    send_data(sock,
+              action='alert',
+              message='Destination reached! Well done! Going back to homebase.')
 
 
 if __name__ == '__main__':
