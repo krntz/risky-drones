@@ -12,17 +12,18 @@ logger = logging.getLogger(__name__)
 def generate_points(radius, num_arcs, num_points, offset):
     points = []
 
-    for a in range(num_arcs):
+    for arc in range(1, num_arcs + 1):
         row = []
 
+        arc_span = 180 - (offset * 2)
         # need to subtract one to account for the first point
-        points_separation = math.radians(180 / (num_points - 1))
+        points_separation = math.radians(arc_span / (num_points - 1))
 
         for p in range(num_points):
-            rotation = p * points_separation
+            rotation = p * points_separation + math.radians(offset)
 
-            x = radius * (a + 1) * math.cos(rotation)
-            y = radius * (a + 1) * math.sin(rotation)
+            x = radius * arc * math.cos(rotation)
+            y = radius * arc * math.sin(rotation)
 
             row.append(Point(x, y))
 
@@ -44,10 +45,10 @@ def visualize_points(points, radius, num_arcs):
     turtle.teleport(0, 0)
     turtle.dot(scale * 3, 'red')
 
-    for a in range(num_arcs):
-        turtle.teleport(radius * (a + 1) * scale, 0)
+    for arc in range(1, num_arcs + 1):
+        turtle.teleport(radius * arc * scale, 0)
         turtle.setheading(90)
-        turtle.circle(radius * (a + 1) * scale, 180)
+        turtle.circle(radius * arc * scale, 180)
 
     for row in points:
         for point in row:
