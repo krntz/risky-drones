@@ -148,11 +148,17 @@ def echo(sock):
 
             if action == 'take off':
                 cf.swarm_take_off()
+            elif action == 'move':
+                sock.send(json.dumps({'action': 'alert',
+                                      'type': 'no takeoff',
+                                      'message': "Please take off before attempting to move!"}))
             else:
                 raise RuntimeError("Illegal action: " + action)
 
     sock.send(json.dumps(
-        {'action': 'finish', 'message': 'Destination reached! Well done! Going back to homebase.'}))
+        {'action': 'alert',
+         'type': 'finish',
+         'message': 'Destination reached! Well done! Going back to homebase.'}))
 
 
 if __name__ == '__main__':

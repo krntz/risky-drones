@@ -20,9 +20,21 @@ socket.addEventListener('message', function (event) {
                 failureAlert.style.display = 'none';
             }, 8000);
             break;
-        case 'welcome':
+        case 'alert':
             document.getElementById('alertText').innerHTML = data.message;
             document.getElementById('customAlert').style.display = 'block';
+
+            switch(data.type) {
+                case 'no takeoff':
+                    document.getElementById('tolBtn').value = "take off";
+                    document.getElementById('tolBtn').innerHTML = "Take Off";
+
+                    break;
+                default:
+                    console.log("Recieved unknown type: " + data.type);
+            }
+
+
             setTimeout(function () {
                 customAlert.style.display = 'none';
             }, 8000);
@@ -41,7 +53,7 @@ socket.addEventListener('message', function (event) {
             stopTimer();
             break;
         default:
-            console.log("recieved unknown action type: " + data.action);
+            console.log("Recieved unknown action type: " + data.action);
     }
 
 });
