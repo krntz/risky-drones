@@ -196,16 +196,17 @@ def echo(sock):
 
             # if drone has not taken off
 
-            if action == 'take off':
-                trial_start = start_trial_timer(sock)
-                cf.swarm_take_off()
-            elif action == 'move':
-                send_message(sock,
-                             action='alert',
-                             data_type='no takeoff',
-                             data='Please take off before attempting to move!')
-            else:
-                raise RuntimeError("Illegal action: " + action)
+            match action:
+                case 'take off':
+                    trial_start = start_trial_timer(sock)
+                    cf.swarm_take_off()
+                case 'move':
+                    send_message(sock,
+                                 action='alert',
+                                 data_type='no takeoff',
+                                 data='Please take off before attempting to move!')
+                case _:
+                    raise RuntimeError("Illegal action: " + action)
 
     send_message(sock,
                  action='alert',
