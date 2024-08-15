@@ -1,10 +1,23 @@
 import logging
 import pickle
-from collections import namedtuple
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
-Point = namedtuple("Point", "x y")
+
+class Point:
+    def __init__(self, x, y, difficulty_modifier):
+        self._position = np.array([x, y])
+        self._difficulty_modifier = difficulty_modifier
+
+    @property
+    def position(self):
+        return self._position
+
+    @property
+    def difficulty_modifier(self):
+        return self._difficulty_modifier
 
 
 def write_to_file(points, filename):

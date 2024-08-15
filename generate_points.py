@@ -4,6 +4,8 @@ import math
 from pathlib import Path
 from turtle import Screen, Turtle
 
+import numpy as np
+
 from points_helper import Point, write_to_file
 
 logger = logging.getLogger(__name__)
@@ -25,7 +27,7 @@ def generate_points(radius, num_arcs, num_points, offset):
             x = radius * arc * math.cos(rotation)
             y = radius * arc * math.sin(rotation)
 
-            row.append(Point(x, y))
+            row.append(Point(x, y, arc))
 
         points.append(row)
 
@@ -52,7 +54,8 @@ def visualize_points(points, radius, num_arcs):
 
     for row in points:
         for point in row:
-            turtle.teleport(point.x * scale, point.y * scale)
+            turtle.teleport(point.position[0] * scale,
+                            point.position[1] * scale)
             turtle.dot(scale * 3, 'blue')
 
     screen.exitonclick()
@@ -124,8 +127,10 @@ if __name__ == '__main__':
                                                                                                                                     args.offset_degrees))
     radius = (args.height / 2) / args.num_arcs
 
-    points = generate_points(radius, args.num_arcs,
-                             args.num_points, args.offset_degrees)
+    points = generate_points(radius,
+                             args.num_arcs,
+                             args.num_points,
+                             args.offset_degrees)
 
     if args.visualize:
         visualize_points(points, radius, args.num_arcs)
