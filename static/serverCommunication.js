@@ -4,13 +4,13 @@ socket.addEventListener('open', function (event) {
 });
 
 socket.addEventListener('message', function (event) {
-    var data = JSON.parse(event.data);
-    switch(data.action){
+    var message = JSON.parse(event.data);
+    switch(message.action){
         case 'score':
-            document.getElementById('score').textContent = + data.value;
+            document.getElementById('score').textContent = message.data;
             break;
         case 'failure':
-            document.getElementById('failureText').innerHTML = data.message;
+            document.getElementById('failureText').innerHTML = message.data;
             document.getElementById('failureAlert').style.display = 'block';
             setTimeout(function () {
                 failureAlert.style.display = 'none';
@@ -19,7 +19,7 @@ socket.addEventListener('message', function (event) {
         case 'alert':
             var modalDuration = 0;
 
-            switch(data.type) {
+            switch(message.type) {
                 case 'no takeoff':
                     modalDuration = 4000;
                     document.getElementById('tolBtn').value = "take off";
@@ -30,10 +30,10 @@ socket.addEventListener('message', function (event) {
                     modalDuration = 8000;
                     break;
                 default:
-                    console.log("Recieved unknown type: " + data.type);
+                    console.log("Recieved unknown type: " + message.type);
             }
 
-            document.getElementById(modalText).innerHTML = data.message;
+            document.getElementById('alertText').innerHTML = message.data;
             document.getElementById('customAlert').style.display = 'block';
 
             setTimeout(function () {
@@ -42,20 +42,23 @@ socket.addEventListener('message', function (event) {
 
             break;
         case 'goal':
-            document.getElementById('alertText').innerHTML = data.message;
+            document.getElementById('alertText').innerHTML = message.data;
             document.getElementById('customAlert').style.display = 'block';
             setTimeout(function () {
                 customAlert.style.display = 'none';
             }, 3000);
             break;
-        case 'start timer':
-            startTimer();
-            break;
-        case 'stop timer':
-            stopTimer();
+        case 'timer':
+            if(message.data == "start") {
+                startTimer();
+            } else if (message.data == "stop") {
+                stopTimer();
+            } else {
+                console.log("Unknown timer data: " + message.data);
+            }
             break;
         default:
-            console.log("Recieved unknown action type: " + data.action);
+            console.log("Recieved unknown action type: " + message.action);
     }
 
 });
@@ -96,8 +99,6 @@ function sendMessage(actionType, parameter) {
             document.getElementById('tolBtn').value = "land";
             document.getElementById('tolBtn').innerHTML = "Land";
 
-            startTimer();
-
             hideAllButtons(2000);
 
             break;
@@ -108,8 +109,6 @@ function sendMessage(actionType, parameter) {
 
             document.getElementById('tolBtn').value = "take off";
             document.getElementById('tolBtn').innerHTML = "Take Off";
-
-            stopTimer();
 
             hideAllButtons(2000);
 

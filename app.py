@@ -29,9 +29,13 @@ NUM_TRIALS = 10
 DRONE_URI = 'radio://0/80/2M/E7E7E7E7E0'
 MOVE_DISTANCE = 0.10
 FLIGHT_ZONE = FlightZone(2.0, 3.0, 1.25, 0.3)
+BASE_SCORE = 10
+POINT_MARGIN = 0.5  # radius (in m) around a point considered "valid"
 
 
 def move_home(cf):
+    cf.swarm_take_off()
+
     drone_position = cf.positions[DRONE_URI]
     drone_position[0] = -(drone_position[0])
     drone_position[1] = -(drone_position[1])
@@ -39,17 +43,17 @@ def move_home(cf):
 
     cf.swarm_move({DRONE_URI: drone_position}, None, 2, True)
 
+    cf.swarm_land()
 
-def send_data(sock, action, message, data_type='na'):
+
+def send_message(sock, action, data, data_type='na'):
     sock.send(json.dumps({'action': action,
                           'type': data_type,
-                          'message': message}))
+                          'data': data}))
 
 
-def recieve_data(sock):
+def recieve_message(sock):
     data = sock.receive()
-
-    logger.debug(data)
 
     if isinstance(data, str):
         json_data = json.loads(data)
@@ -62,6 +66,22 @@ def recieve_data(sock):
         raise Exception("Recieved data is not string!")
 
 
+def start_trial_timer(sock):
+    send_message(sock,
+                 action='timer',
+                 data='start')
+
+    return time.time()
+
+
+def stop_trial_timer(sock, start_time):
+    send_message(sock,
+                 action='timer',
+                 data='stop')
+
+    return time.time() - start_time
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -72,20 +92,18 @@ def echo(sock):
     global score
     global goal_reached
 
-    send_data(sock,
-              action='alert',
-              message='Welcome! This is your first flight.')
+    send_message(sock,
+                 action='alert',
+                 data='Welcome! This is your first flight.')
 
     cf = SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
 
     experiment_trial = 0
     score = 0
 
-    start_time = time.time()
-    start_time_action = time.time()
-
     while experiment_trial < NUM_TRIALS:
-        data = recieve_data(sock)
+
+        data = recieve_message(sock)
 
         # Log movement
         logger.info(f"{data}")
@@ -128,22 +146,46 @@ def echo(sock):
                 else:
                     raise RuntimeError("Unknown direction: " + direction)
             elif action == 'land':
-                # TODO:
-                # 1. land drone
-                # 2. check if the drone is inside a point
-                #    a. if drone is inside the closest point, increase score
-                #    b. if drone is not inside closest point
-                #      A. decrease score
-                #      B. find which point it's closest to
-                # 3. send score update to front end
-                # 4. show message on front end
-                # 5. move drone back to home
-                # 6. start next trial
-
                 # TODO: Store participant score, time to complete, and
                 # avg. time per action for each trial
 
+                trial_time = stop_trial_timer(sock, trial_start)
+
                 cf.swarm_land()
+
+                new_score = -BASE_SCORE
+
+                for row in destinations:
+                    for point in row:
+                        drone_within_point = cf.distance_to_2D_point(
+                            DRONE_URI, point.position) < POINT_MARGIN
+
+                        if drone_within_point:
+                            new_score = BASE_SCORE * point.difficulty_modifier
+
+                            send_message(sock,
+                                         action='alert',
+                                         data="You've gained {} points! Moving drone back to home.".format(new_score))
+
+                            # no need to continue searching
+                            # when we've found the closest point
+
+                            break
+
+                if new_score < 0:
+                    send_message(sock,
+                                 action='alert',
+                                 data="You've lost {} points! Moving drone back to home.".format(abs(new_score)))
+
+                score += new_score
+                send_message(sock,
+                             action='score',
+                             data=score)
+
+                move_home(cf)
+
+                experiment_trial += 1
+
             else:
                 raise RuntimeError("Illegal action: " + action)
 
@@ -152,18 +194,19 @@ def echo(sock):
             # if drone has not taken off
 
             if action == 'take off':
+                trial_start = start_trial_timer(sock)
                 cf.swarm_take_off()
             elif action == 'move':
-                send_data(sock,
-                          action='alert',
-                          data_type='no takeoff',
-                          message='Please take off before attempting to move!')
+                send_message(sock,
+                             action='alert',
+                             data_type='no takeoff',
+                             data='Please take off before attempting to move!')
             else:
                 raise RuntimeError("Illegal action: " + action)
 
-    send_data(sock,
-              action='alert',
-              message='Destination reached! Well done! Going back to homebase.')
+    send_message(sock,
+                 action='alert',
+                 data='Destination reached! Well done! Going back to homebase.')
 
 
 if __name__ == '__main__':
