@@ -17,28 +17,29 @@ socket.addEventListener('message', function (event) {
             }, 8000);
             break;
         case 'alert':
+            var modalDuration = 0;
 
             switch(data.type) {
                 case 'no takeoff':
-                    document.getElementById('alertText').innerHTML = data.message;
-                    document.getElementById('customAlert').style.display = 'block';
-
+                    modalDuration = 4000;
                     document.getElementById('tolBtn').value = "take off";
                     document.getElementById('tolBtn').innerHTML = "Take Off";
 
                     break;
                 case 'na':
-                    document.getElementById('alertText').innerHTML = data.message;
-                    document.getElementById('customAlert').style.display = 'block';
+                    modalDuration = 8000;
                     break;
                 default:
                     console.log("Recieved unknown type: " + data.type);
             }
 
+            document.getElementById(modalText).innerHTML = data.message;
+            document.getElementById('customAlert').style.display = 'block';
 
             setTimeout(function () {
                 customAlert.style.display = 'none';
-            }, 8000);
+            }, modalDuration);
+
             break;
         case 'goal':
             document.getElementById('alertText').innerHTML = data.message;
