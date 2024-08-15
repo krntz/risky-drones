@@ -120,74 +120,77 @@ def echo(sock):
             continue
 
         if cf.swarm_flying:
-            if action == 'move':
-                direction = data['direction']
+            match action:
+                case 'move':
+                    direction = data['direction']
 
-                if direction == 'forward':
-                    cf.swarm_move({DRONE_URI: [MOVE_DISTANCE, 0, 0]},
-                                  None,
-                                  2.,
-                                  True)
-                elif direction == 'back':
-                    cf.swarm_move({DRONE_URI: [-MOVE_DISTANCE, 0, 0]},
-                                  None,
-                                  2.,
-                                  True)
-                elif direction == 'left':
-                    cf.swarm_move({DRONE_URI: [0, MOVE_DISTANCE, 0]},
-                                  None,
-                                  2.,
-                                  True)
-                elif direction == 'right':
-                    cf.swarm_move({DRONE_URI: [0, -MOVE_DISTANCE, 0]},
-                                  None,
-                                  2.,
-                                  True)
-                else:
-                    raise RuntimeError("Unknown direction: " + direction)
-            elif action == 'land':
-                # TODO: Store participant score, time to complete, and
-                # avg. time per action for each trial
+                    match direction:
+                        case 'forward':
+                            cf.swarm_move({DRONE_URI: [MOVE_DISTANCE, 0, 0]},
+                                          None,
+                                          2.,
+                                          True)
+                        case 'back':
+                            cf.swarm_move({DRONE_URI: [-MOVE_DISTANCE, 0, 0]},
+                                          None,
+                                          2.,
+                                          True)
+                        case 'left':
+                            cf.swarm_move({DRONE_URI: [0, MOVE_DISTANCE, 0]},
+                                          None,
+                                          2.,
+                                          True)
+                        case 'right':
+                            cf.swarm_move({DRONE_URI: [0, -MOVE_DISTANCE, 0]},
+                                          None,
+                                          2.,
+                                          True)
+                        case _:
+                            raise RuntimeError(
+                                "Unknown direction: " + direction)
+                case 'land':
+                    # TODO: Store participant score, time to complete, and
+                    # avg. time per action for each trial
 
-                trial_time = stop_trial_timer(sock, trial_start)
+                    trial_time = stop_trial_timer(sock, trial_start)
 
-                cf.swarm_land()
+                    cf.swarm_land()
 
-                new_score = -BASE_SCORE
+                    new_score = -BASE_SCORE
 
-                for row in destinations:
-                    for point in row:
-                        drone_within_point = cf.distance_to_2D_point(
-                            DRONE_URI, point.position) < POINT_MARGIN
+                    for row in destinations:
+                        for point in row:
+                            drone_within_point = cf.distance_to_2D_point(
+                                DRONE_URI, point.position) < POINT_MARGIN
 
-                        if drone_within_point:
-                            new_score = BASE_SCORE * point.difficulty_modifier
+                            if drone_within_point:
+                                new_score = BASE_SCORE * point.difficulty_modifier
 
-                            send_message(sock,
-                                         action='alert',
-                                         data="You've gained {} points! Moving drone back to home.".format(new_score))
+                                send_message(sock,
+                                             action='alert',
+                                             data="You've gained {} points! Moving drone back to home.".format(new_score))
 
-                            # no need to continue searching
-                            # when we've found the closest point
+                                # no need to continue searching
+                                # when we've found the closest point
 
-                            break
+                                break
 
-                if new_score < 0:
+                    if new_score < 0:
+                        send_message(sock,
+                                     action='alert',
+                                     data="You've lost {} points! Moving drone back to home.".format(abs(new_score)))
+
+                    score += new_score
                     send_message(sock,
-                                 action='alert',
-                                 data="You've lost {} points! Moving drone back to home.".format(abs(new_score)))
+                                 action='score',
+                                 data=score)
 
-                score += new_score
-                send_message(sock,
-                             action='score',
-                             data=score)
+                    move_home(cf)
 
-                move_home(cf)
+                    experiment_trial += 1
 
-                experiment_trial += 1
-
-            else:
-                raise RuntimeError("Illegal action: " + action)
+                case _:
+                    raise RuntimeError("Illegal action: " + action)
 
         else:
 
