@@ -1,4 +1,5 @@
 import argparse
+import csv
 import json
 import logging
 import math
@@ -30,7 +31,16 @@ DRONE_URI = 'radio://0/80/2M/E7E7E7E7E0'
 MOVE_DISTANCE = 0.10
 FLIGHT_ZONE = FlightZone(2.0, 3.0, 1.25, 0.3)
 BASE_SCORE = 10
-POINT_MARGIN = 0.5  # radius (in m) around a point considered "valid"
+GOAL_MARGIN = 0.5  # radius (in m) around a goal considered "valid"
+
+DATA_FIELDNAMES = ['Participant ID',
+                   'Condition',
+                   'Trial',
+                   'Score',
+                   'Avg. time per action',
+                   'Time to complete trial',
+                   'Closest goal',
+                   'Success']
 
 
 def move_home(cf):
@@ -80,6 +90,26 @@ def stop_trial_timer(sock, start_time):
                  data='stop')
 
     return time.time() - start_time
+
+
+def write_row_to_csv(experiment_trial,
+                     score,
+                     trial_time,
+                     closest_goal,
+                     success):
+    row = {'Participant ID': app.config['id'],
+           'Condition': app.config['condition'],
+           'Trial': experiment_trial,
+           'Score': score,
+           'Avg. time per action': None,
+           'Time to complete trial': trial_time,
+           'Closest goal': closest_goal,
+           'Success': success}
+
+    with open('participants/{}.csv'.format(app.config['id']), newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
+
+        writer.writerow(row)
 
 
 @app.route('/')
@@ -158,20 +188,22 @@ def echo(sock):
 
                     new_score = -BASE_SCORE
 
-                    for row in destinations:
-                        for point in row:
-                            drone_within_point = cf.distance_to_2D_point(
-                                DRONE_URI, point.position) < POINT_MARGIN
+                    closest_goal = ""
 
-                            if drone_within_point:
-                                new_score = BASE_SCORE * point.difficulty_modifier
+                    for row in destinations:
+                        for goal in row:
+                            drone_in_goal = cf.distance_to_2D_point(
+                                DRONE_URI, goal.position) < GOAL_MARGIN
+
+                            if drone_in_goal:
+                                new_score = BASE_SCORE * goal.difficulty_modifier
 
                                 send_message(sock,
                                              action='alert',
                                              data="You've gained {} points! Moving drone back to home.".format(new_score))
 
                                 # no need to continue searching
-                                # when we've found the closest point
+                                # when we've found the closest goal
 
                                 break
 
@@ -184,6 +216,12 @@ def echo(sock):
                     send_message(sock,
                                  action='score',
                                  data=score)
+
+                    write_row_to_csv(experiment_trial,
+                                     score,
+                                     trial_time,
+                                     closest_goal,
+                                     success)
 
                     move_home(cf)
 
@@ -235,12 +273,12 @@ if __name__ == '__main__':
                         default='movements.log',
                         help='File into which to write the log')
 
-    parser.add_argument('-p',
-                        '--points-file',
-                        dest='pointsFile',
+    parser.add_argument('-g',
+                        '--goal-file',
+                        dest='goalsFile',
                         type=Path,
-                        default='points.bin',
-                        help='The generated file with points to use')
+                        default='goals.bin',
+                        help='The generated file with goals to use')
 
     args = parser.parse_args()
 
@@ -252,7 +290,11 @@ if __name__ == '__main__':
     app.config['condition'] = args.condition
     app.config['id'] = args.id
 
-    destinations = read_from_file(args.pointsFile)
+    destinations = read_from_file(args.goalsFile)
+
+    with open('data/{}.csv'.format(args.id), 'w', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
+        write.writeheader()
 
     # TODO: Create .csv file for each participant with name <id>.csv
 
