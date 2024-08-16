@@ -13,11 +13,13 @@ logger = logging.getLogger(__name__)
 
 def generate_goals(radius, num_arcs, num_goals, offset):
     goals = []
+    goal_number = 0
 
     for arc in range(1, num_arcs + 1):
         row = []
 
         arc_span = 180 - (offset * 2)
+
         # need to subtract one to account for the first goal
         goals_separation = math.radians(arc_span / (num_goals - 1))
 
@@ -27,7 +29,12 @@ def generate_goals(radius, num_arcs, num_goals, offset):
             x = radius * arc * math.cos(rotation)
             y = radius * arc * math.sin(rotation)
 
-            row.append(Goal(x, y, arc))
+            # assign a letter label to each goal for easy identification
+
+            label = chr(goal_number + 65)
+
+            row.append(Goal(x, y, arc, label))
+            goal_number += 1
 
         goals.append(row)
 
@@ -57,6 +64,9 @@ def visualize_goals(goals, radius, num_arcs):
             turtle.teleport(goal.position[0] * scale,
                             goal.position[1] * scale)
             turtle.dot(scale * 3, 'blue')
+            turtle.write(goal.label,
+                         align="center",
+                         font=('Arial', 4*scale, 'normal'))
 
     screen.exitonclick()
 
