@@ -33,6 +33,10 @@ FLIGHT_ZONE = FlightZone(2.0, 3.0, 1.25, 0.3)
 BASE_SCORE = 10
 GOAL_MARGIN = 0.5  # radius (in m) around a goal considered "valid"
 
+DATA_FOLDER = Path('./data')
+PARTICIPANT_DATA_FOLDER = DATA_FOLDER / 'performance-data'
+LOG_FOLDER = DATA_FOLDER / 'logs'
+
 DATA_FIELDNAMES = ['Participant ID',
                    'Condition',
                    'Trial',
@@ -103,7 +107,9 @@ def write_row_to_csv(experiment_trial,
            'Time to complete trial': trial_time,
            'Closest goal': closest_goal}
 
-    with open('data/perfomance-data/{}.csv'.format(app.config['id']), newline='') as csvfile:
+    participant_file = (PARTICIPANT_DATA_FOLDER /
+                        app.config['id']).with_suffix('.csv')
+    with participant_file.open(mode='w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
 
         writer.writerow(row)
@@ -273,6 +279,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    PARTICIPANT_DATA_FOLDER.mkdir(parents=True, exist_ok=True)
+    LOG_FOLDER.mkdir(parents=True, exist_ok=True)
+
     logging.basicConfig(format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
                         datefmt='%H:%M:%S',
                         level=logging.INFO,
@@ -283,7 +292,8 @@ if __name__ == '__main__':
 
     destinations = read_from_file(args.goalsFile)
 
-    with open('data/performance-data/{}.csv'.format(args.id), 'w', newline='') as csvfile:
+    participant_file = (PARTICIPANT_DATA_FOLDER / args.id).with_suffix('.csv')
+    with participant_file.open(mode='w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
         writer.writeheader()
 
