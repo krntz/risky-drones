@@ -15,7 +15,7 @@ from flask_sock import Sock
 from controllers.crazyflieController import CrazyflieController
 from controllers.simulatedController import SimulatedController
 from controllers.utils.utils import FlightZone
-from points_helper import Point, read_from_file
+from goals_helper import Goal, read_from_file
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,7 @@ DATA_FIELDNAMES = ['Participant ID',
                    'Score',
                    'Avg. time per action',
                    'Time to complete trial',
-                   'Closest goal',
-                   'Success']
+                   'Closest goal']
 
 
 def move_home(cf):
@@ -95,18 +94,16 @@ def stop_trial_timer(sock, start_time):
 def write_row_to_csv(experiment_trial,
                      score,
                      trial_time,
-                     closest_goal,
-                     success):
+                     closest_goal):
     row = {'Participant ID': app.config['id'],
            'Condition': app.config['condition'],
            'Trial': experiment_trial,
            'Score': score,
            'Avg. time per action': None,
            'Time to complete trial': trial_time,
-           'Closest goal': closest_goal,
-           'Success': success}
+           'Closest goal': closest_goal}
 
-    with open('participants/{}.csv'.format(app.config['id']), newline='') as csvfile:
+    with open('data/perfomance-data/{}.csv'.format(app.config['id']), newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
 
         writer.writerow(row)
@@ -220,8 +217,7 @@ def echo(sock):
                     write_row_to_csv(experiment_trial,
                                      score,
                                      trial_time,
-                                     closest_goal,
-                                     success)
+                                     closest_goal)
 
                     move_home(cf)
 
@@ -265,13 +261,8 @@ if __name__ == '__main__':
 
     parser.add_argument('-i',
                         '--id',
+                        required=True,
                         help='The id of the current participant')
-
-    parser.add_argument('-l',
-                        '--log-file',
-                        dest='logFile',
-                        default='movements.log',
-                        help='File into which to write the log')
 
     parser.add_argument('-g',
                         '--goal-file',
@@ -285,16 +276,16 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
                         datefmt='%H:%M:%S',
                         level=logging.INFO,
-                        handlers=[logging.FileHandler(args.logFile), logging.StreamHandler(sys.stdout)])
+                        handlers=[logging.FileHandler('data/logs/{}.log'.format(args.id)), logging.StreamHandler(sys.stdout)])
 
     app.config['condition'] = args.condition
     app.config['id'] = args.id
 
     destinations = read_from_file(args.goalsFile)
 
-    with open('data/{}.csv'.format(args.id), 'w', newline='') as csvfile:
+    with open('data/performance-data/{}.csv'.format(args.id), 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
-        write.writeheader()
+        writer.writeheader()
 
     # TODO: Create .csv file for each participant with name <id>.csv
 
