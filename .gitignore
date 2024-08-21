@@ -1,6 +1,10 @@
 cache/
 *.bin
+<<<<<<< HEAD
 participant-data/
+=======
+data/
+>>>>>>> 6314ac8dc536242cd1629a47c2703c9f92c561e8
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
