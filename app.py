@@ -15,7 +15,7 @@ from flask_sock import Sock
 from controllers.crazyflieController import CrazyflieController
 from controllers.simulatedController import SimulatedController
 from controllers.utils.utils import FlightZone
-from points_helper import Point, read_from_file
+from goals_helper import read_from_file
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +33,14 @@ FLIGHT_ZONE = FlightZone(2.0, 3.0, 1.25, 0.3)
 BASE_SCORE = 10
 GOAL_MARGIN = 0.5  # radius (in m) around a goal considered "valid"
 
+DATA_FOLDER = 'participant-data'
 DATA_FIELDNAMES = ['Participant ID',
                    'Condition',
                    'Trial',
                    'Score',
                    'Avg. time per action',
                    'Time to complete trial',
-                   'Closest goal',
-                   'Success']
+                   'Closest goal']
 
 
 def move_home(cf):
@@ -95,18 +95,16 @@ def stop_trial_timer(sock, start_time):
 def write_row_to_csv(experiment_trial,
                      score,
                      trial_time,
-                     closest_goal,
-                     success):
+                     closest_goal):
     row = {'Participant ID': app.config['id'],
            'Condition': app.config['condition'],
            'Trial': experiment_trial,
            'Score': score,
            'Avg. time per action': None,
            'Time to complete trial': trial_time,
-           'Closest goal': closest_goal,
-           'Success': success}
+           'Closest goal': closest_goal}
 
-    with open('participants/{}.csv'.format(app.config['id']), newline='') as csvfile:
+    with open('{}/performance-data/{}.csv'.format(DATA_FOLDER, app.config['id']), 'w+', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
 
         writer.writerow(row)
@@ -188,24 +186,37 @@ def echo(sock):
 
                     new_score = -BASE_SCORE
 
-                    closest_goal = ""
+                    closest_goal = None
 
-                    for row in destinations:
-                        for goal in row:
-                            drone_in_goal = cf.distance_to_2D_point(
-                                DRONE_URI, goal.position) < GOAL_MARGIN
+                    try:
+                        for row in destinations:
+                            for goal in row:
+                                distance_to_current_goal = cf.distance_to_2D_point(
+                                    DRONE_URI, goal.position)
 
-                            if drone_in_goal:
-                                new_score = BASE_SCORE * goal.difficulty_modifier
+                                drone_in_goal = distance_to_current_goal < GOAL_MARGIN
 
-                                send_message(sock,
-                                             action='alert',
-                                             data="You've gained {} points! Moving drone back to home.".format(new_score))
+                                if drone_in_goal:
+                                    closest_goal = goal
+                                    new_score = BASE_SCORE * goal.difficulty_modifier
 
-                                # no need to continue searching
-                                # when we've found the closest goal
+                                    send_message(sock,
+                                                 action='alert',
+                                                 data="You've gained {} points! Moving drone back to home.".format(new_score))
 
-                                break
+                                    # no need to continue searching
+                                    # when we've found the closest goal
+
+                                    raise StopIteration()
+
+                                distance_to_old_goal = cf.distance_to_2D_point(
+                                    DRONE_URI, closest_goal.position)
+
+                                if distance_to_current_goal < distance_to_old_goal:
+                                    closest_goal = goal
+
+                    except StopIteration:
+                        pass
 
                     if new_score < 0:
                         send_message(sock,
@@ -220,8 +231,7 @@ def echo(sock):
                     write_row_to_csv(experiment_trial,
                                      score,
                                      trial_time,
-                                     closest_goal,
-                                     success)
+                                     closest_goal.label)
 
                     move_home(cf)
 
@@ -265,13 +275,14 @@ if __name__ == '__main__':
 
     parser.add_argument('-i',
                         '--id',
+                        required=True,
                         help='The id of the current participant')
 
     parser.add_argument('-l',
-                        '--log-file',
-                        dest='logFile',
-                        default='movements.log',
-                        help='File into which to write the log')
+                        '--log-folder',
+                        dest='logFolder',
+                        default='{}/logs/'.format(DATA_FOLDER),
+                        help='Folder into which to write the log. Default = {}/logs'.format(DATA_FOLDER))
 
     parser.add_argument('-g',
                         '--goal-file',
@@ -285,17 +296,22 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
                         datefmt='%H:%M:%S',
                         level=logging.INFO,
-                        handlers=[logging.FileHandler(args.logFile), logging.StreamHandler(sys.stdout)])
+                        handlers=[logging.FileHandler('{}/{}.log'.format(args.logFolder, args.id)), logging.StreamHandler(sys.stdout)])
+
+    logging.info('Log for participant with ID {} is stored in {}{}.log'.format(
+        args.id, args.logFolder, args.id))
 
     app.config['condition'] = args.condition
     app.config['id'] = args.id
 
-    destinations = read_from_file(args.goalsFile)
+    try:
+        destinations = read_from_file(args.goalsFile)
+    except FileNotFoundError:
+        logger.info("Could not find file {}".format(args.goalsFile))
+        quit()
 
-    with open('data/{}.csv'.format(args.id), 'w', newline='') as csvfile:
+    with open('{}/{}.csv'.format(DATA_FOLDER, args.id), 'w+', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
-        write.writeheader()
-
-    # TODO: Create .csv file for each participant with name <id>.csv
+        writer.writeheader()
 
     app.run()
