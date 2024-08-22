@@ -26,7 +26,7 @@ let remainingPathColor = COLOR_CODES.info.color;
 function onTimesUp() {
     clearInterval(timerInterval);
 
-    sendMessage("failed trial"); /* let server know the trial has failed */
+    sendMessage("out of time"); /* let server know the trial has failed */
 }
 
 function startTimer() {

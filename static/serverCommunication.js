@@ -113,10 +113,13 @@ function sendMessage(actionType, parameter) {
             hideAllButtons(2000);
 
             break;
-        case 'failed trial':
+        case 'out of time':
             message = JSON.stringify(
                 { "action": actionType }
             );
+
+            document.getElementById('tolBtn').value = "take off";
+            document.getElementById('tolBtn').innerHTML = "Take Off";
 
             hideAllButtons(2000);
 
