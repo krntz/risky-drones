@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import random
+import statistics
 import sys
 import time
 from operator import truediv
@@ -25,13 +26,18 @@ sock = Sock(app)
 # Destinations have a name, easy_location, hard_location
 destinations = []
 
+DRONE_URI = 'radio://0/80/2M/E7E7E7E7E0'
+FLIGHT_ZONE = FlightZone(2.0, 3.0, 1.25, 0.3)
+
 SCORE = 0
+BASE_SCORE = 10
 
 NUM_TRIALS = 10
-DRONE_URI = 'radio://0/80/2M/E7E7E7E7E0'
-MOVE_DISTANCE = 0.10
-FLIGHT_ZONE = FlightZone(2.0, 3.0, 1.25, 0.3)
-BASE_SCORE = 10
+
+BASE_MOVEMENT_DISTANCE = 0.10
+MOVEMENT_RANGE = (0.0, 0.40)
+MOVEMENT_STEPS = 0.05
+
 GOAL_MARGIN = 0.5  # radius (in m) around a goal considered "valid"
 
 DATA_FOLDER = Path('./data')
@@ -48,6 +54,8 @@ DATA_FIELDNAMES = ['Participant ID',
 
 
 def move_home(cf):
+    logger.info("Moving drone to home position")
+
     if not cf.swarm_flying:
         cf.swarm_take_off()
 
@@ -109,20 +117,21 @@ def update_score(sock, score_update):
 
 def write_row_to_csv(experiment_trial,
                      trial_time,
+                     time_per_action,
                      closest_goal):
     row = {'Participant ID': app.config['id'],
            'Condition': app.config['condition'],
            'Trial': experiment_trial,
            'Score': SCORE,
-           'Avg. time per action': None,
+           'Avg. time per action': time_per_action,
            'Time to complete trial': trial_time,
            'Closest goal': closest_goal}
 
     participant_file = (PARTICIPANT_DATA_FOLDER /
                         app.config['id']).with_suffix('.csv')
+
     with participant_file.open(mode='a', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
-
         writer.writerow(row)
 
 
@@ -140,6 +149,7 @@ def echo(sock):
     cf = SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
 
     experiment_trial = 0
+    action_times = []
 
     while experiment_trial < NUM_TRIALS:
 
@@ -147,144 +157,159 @@ def echo(sock):
 
         action = data['action']
 
-        if action == 'out of time':
-            trial_time = stop_trial_timer(sock, trial_start)
+        match action:
+            case 'out of time':
+                trial_time = stop_trial_timer(sock, trial_start)
 
-            score_update = -BASE_SCORE
+                score_update = -BASE_SCORE
 
-            update_score(sock, score_update)
+                update_score(sock, score_update)
 
-            message = "You've run out of time, you've lost {} points! Moving drone back to home.".format(
-                abs(score_update))
+                message = "You've run out of time, you've lost {} points! Moving drone back to home.".format(
+                    abs(score_update))
 
-            send_message(sock, 'alert', message)
+                send_message(sock, 'alert', message)
 
-            closest_goal = (math.inf, None)
+                closest_goal = (math.inf, None)
 
-            for row in destinations:
-                for goal in row:
-                    distance_to_current_goal = cf.distance_to_2D_point(DRONE_URI,
-                                                                       goal.position)
+                for row in destinations:
+                    for goal in row:
+                        distance_to_current_goal = cf.distance_to_2D_point(DRONE_URI,
+                                                                           goal.position)
 
-                    distance_to_old_goal = closest_goal[0]
+                        distance_to_old_goal = closest_goal[0]
 
-                    if distance_to_current_goal < distance_to_old_goal:
-                        closest_goal = (distance_to_current_goal, goal)
+                        if distance_to_current_goal < distance_to_old_goal:
+                            closest_goal = (distance_to_current_goal, goal)
 
-            write_row_to_csv(experiment_trial,
-                             trial_time,
-                             closest_goal[1].label)
+                avg_time_per_action = statistics.fmean(action_times)
+                write_row_to_csv(experiment_trial,
+                                 trial_time,
+                                 avg_time_per_action,
+                                 closest_goal[1].label)
 
-            # if the participant ran out of time, move to next trial
-            move_home(cf)
-            experiment_trial += 1
+                move_home(cf)
+                experiment_trial += 1
+                action_times = []
 
-            continue
+                continue
 
-        if cf.swarm_flying:
-            match action:
-                case 'move':
+            case 'move':
+                if cf.swarm_flying:
+                    action_timer_stop = time.time() - action_timer_start
+                    action_times.append(action_timer_stop)
+
+                    action_timer_start = time.time()
+
                     direction = data['direction']
+
+                    movement_distance = BASE_MOVEMENT_DISTANCE
+
+                    if app.config['condition'] == 'manipulation':
+                        movement_distance = random.randrange(int(MOVEMENT_RANGE[0] * 100),
+                                                             int(MOVEMENT_RANGE[1]
+                                                                 * 100),
+                                                             int(MOVEMENT_STEPS * 100)) / 100
 
                     logger.info("Moving {}".format(direction))
 
+                    movement = None
+
                     match direction:
                         case 'forward':
-                            cf.swarm_move({DRONE_URI: [MOVE_DISTANCE, 0, 0]},
-                                          None,
-                                          2.,
-                                          True)
+                            movement = [movement_distance, 0, 0]
                         case 'back':
-                            cf.swarm_move({DRONE_URI: [-MOVE_DISTANCE, 0, 0]},
-                                          None,
-                                          2.,
-                                          True)
+                            movement = [-movement_distance, 0, 0]
                         case 'left':
-                            cf.swarm_move({DRONE_URI: [0, MOVE_DISTANCE, 0]},
-                                          None,
-                                          2.,
-                                          True)
+                            movement = [0, movement_distance, 0]
                         case 'right':
-                            cf.swarm_move({DRONE_URI: [0, -MOVE_DISTANCE, 0]},
-                                          None,
-                                          2.,
-                                          True)
+                            movement = [0, -movement_distance, 0]
                         case _:
                             raise RuntimeError(
                                 "Unknown direction: " + direction)
-                case 'land':
-                    trial_time = stop_trial_timer(sock, trial_start)
 
-                    cf.swarm_land()
-
-                    new_score = -BASE_SCORE
-
-                    closest_goal = (math.inf, None)
-
-                    try:
-                        for row in destinations:
-                            for goal in row:
-                                distance_to_current_goal = cf.distance_to_2D_point(
-                                    DRONE_URI, goal.position)
-
-                                drone_in_goal = distance_to_current_goal < GOAL_MARGIN
-
-                                if drone_in_goal:
-                                    closest_goal = (distance_to_current_goal,
-                                                    goal)
-                                    new_score = BASE_SCORE * goal.difficulty_modifier
-
-                                    send_message(sock,
-                                                 action='alert',
-                                                 data="You've gained {} points! Moving drone back to home.".format(new_score))
-
-                                    # no need to continue searching
-                                    # when we've found the closest goal
-
-                                    raise StopIteration()
-
-                                distance_to_old_goal = closest_goal[0]
-
-                                if distance_to_current_goal < distance_to_old_goal:
-                                    closest_goal = (distance_to_current_goal,
-                                                    goal)
-
-                    except StopIteration:
-                        pass
-
-                    if new_score < 0:
-                        send_message(sock,
-                                     action='alert',
-                                     data="You've lost {} points! Moving drone back to home.".format(abs(new_score)))
-
-                    update_score(sock, new_score)
-
-                    write_row_to_csv(experiment_trial,
-                                     trial_time,
-                                     closest_goal[1].label)
-
-                    move_home(cf)
-
-                    experiment_trial += 1
-
-                case _:
-                    raise RuntimeError("Illegal action: " + action)
-
-        else:
-
-            # if drone has not taken off
-
-            match action:
-                case 'take off':
-                    trial_start = start_trial_timer(sock)
-                    cf.swarm_take_off()
-                case 'move':
+                    cf.swarm_move({DRONE_URI: movement}, None, 2., True)
+                else:
                     send_message(sock,
                                  action='alert',
                                  data_type='no takeoff',
                                  data='Please take off before attempting to move!')
-                case _:
-                    raise RuntimeError("Illegal action: " + action)
+
+            case 'take off':
+                if cf.swarm_flying:
+                    raise RuntimeError(
+                        "Recieved take off command when already flying!")
+
+                trial_start = start_trial_timer(sock)
+                action_timer_start = time.time()
+                cf.swarm_take_off()
+
+            case 'land':
+                if not cf.swarm_flying:
+                    raise RuntimeError(
+                        "Recieved land command when not flying!")
+
+                trial_time = stop_trial_timer(sock, trial_start)
+
+                action_timer_stop = time.time() - action_timer_start
+                action_times.append(action_timer_stop)
+
+                cf.swarm_land()
+
+                new_score = -BASE_SCORE
+
+                closest_goal = (math.inf, None)
+
+                try:
+                    for row in destinations:
+                        for goal in row:
+                            distance_to_current_goal = cf.distance_to_2D_point(
+                                DRONE_URI, goal.position)
+
+                            drone_in_goal = distance_to_current_goal < GOAL_MARGIN
+
+                            if drone_in_goal:
+                                closest_goal = (distance_to_current_goal,
+                                                goal)
+                                new_score = BASE_SCORE * goal.difficulty_modifier
+
+                                send_message(sock,
+                                             action='alert',
+                                             data="You've gained {} points! Moving drone back to home.".format(new_score))
+
+                                # no need to continue searching
+                                # when we've found the closest goal
+
+                                raise StopIteration()
+
+                            distance_to_old_goal = closest_goal[0]
+
+                            if distance_to_current_goal < distance_to_old_goal:
+                                closest_goal = (distance_to_current_goal,
+                                                goal)
+
+                except StopIteration:
+                    pass
+
+                if new_score < 0:
+                    send_message(sock,
+                                 action='alert',
+                                 data="You've lost {} points! Moving drone back to home.".format(abs(new_score)))
+
+                update_score(sock, new_score)
+
+                avg_time_per_action = statistics.fmean(action_times)
+                write_row_to_csv(experiment_trial,
+                                 trial_time,
+                                 avg_time_per_action,
+                                 closest_goal[1].label)
+
+                move_home(cf)
+                action_times = []
+                experiment_trial += 1
+
+            case _:
+                raise RuntimeError("Illegal action: " + action)
 
     send_message(sock,
                  action='alert',
@@ -300,7 +325,7 @@ if __name__ == '__main__':
                         '--condition',
                         dest='condition',
                         required=True,
-                        choices=['control', 'fail'],
+                        choices=['control', 'manipulation'],
                         help='Which experimental condition to run')
 
     parser.add_argument('-i',
