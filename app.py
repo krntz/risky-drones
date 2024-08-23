@@ -335,7 +335,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-g',
                         '--goal-file',
-                        dest='goalsFile',
+                        dest='goalFile',
                         type=Path,
                         default='goals.bin',
                         help='The generated file with goals to use')
@@ -356,9 +356,9 @@ if __name__ == '__main__':
     app.config['id'] = args.id
 
     try:
-        destinations = read_from_file(args.goalsFile)
+        destinations = read_from_file(args.goalFile)
     except FileNotFoundError:
-        logger.info("Could not find goal file {}".format(args.goalsFile))
+        logger.info("Could not find goal file {}".format(args.goalFile))
         quit()
 
     participant_file = (PARTICIPANT_DATA_FOLDER / args.id).with_suffix('.csv')
