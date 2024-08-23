@@ -18,7 +18,6 @@ const COLOR_CODES = {
 };
 
 const TIME_LIMIT = 20; /* seconds */
-let timePassed = 0;
 let timeLeft = TIME_LIMIT;
 let timerInterval = null;
 
@@ -42,7 +41,6 @@ function resetTimer() {
         .classList.add(info.color);
 
     timeLeft = TIME_LIMIT;
-    timePassed = 0;
     setCircleDasharray(TIME_LIMIT-1);
 
     document
@@ -60,11 +58,12 @@ function startTimer() {
     setCircleDasharray(TIME_LIMIT-1);
 
     timerInterval = setInterval(() => {
-        timePassed = timePassed += 1;
-        timeLeft = TIME_LIMIT - timePassed;
-        document.getElementById("base-timer-label").innerHTML = formatTime(
-            timeLeft
-        );
+        timeLeft -= 1;
+
+        document
+            .getElementById("base-timer-label")
+            .innerHTML = formatTime(timeLeft);
+
         setCircleDasharray();
         setRemainingPathColor(timeLeft);
 
