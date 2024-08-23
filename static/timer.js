@@ -21,18 +21,43 @@ const TIME_LIMIT = 20; /* seconds */
 let timePassed = 0;
 let timeLeft = TIME_LIMIT;
 let timerInterval = null;
-let remainingPathColor = COLOR_CODES.info.color;
+
+function resetTimer() {
+    clearInterval(timerInterval);
+
+    const { alert, warning, info } = COLOR_CODES;
+
+    if (timeLeft <= alert.threshold) {
+        document
+            .getElementById("base-timer-path-remaining")
+            .classList.remove(alert.color);
+    } else if (timeLeft <= warning.threshold) {
+        document
+            .getElementById("base-timer-path-remaining")
+            .classList.remove(warning.color);
+    }
+
+    document
+        .getElementById("base-timer-path-remaining")
+        .classList.add(info.color);
+
+    timeLeft = TIME_LIMIT;
+    timePassed = 0;
+    setCircleDasharray(TIME_LIMIT-1);
+
+    document
+        .getElementById("base-timer-label")
+        .innerHTML = formatTime(timeLeft);
+}
 
 function onTimesUp() {
-    clearInterval(timerInterval);
+    resetTimer();
 
     sendMessage("out of time"); /* let server know the trial has failed */
 }
 
 function startTimer() {
     setCircleDasharray(TIME_LIMIT-1);
-
-    timeLeft = TIME_LIMIT;
 
     timerInterval = setInterval(() => {
         timePassed = timePassed += 1;
@@ -50,7 +75,7 @@ function startTimer() {
 }
 
 function stopTimer() {
-    clearInterval(timerInterval);
+    resetTimer();
 }
 
 function formatTime(time) {
