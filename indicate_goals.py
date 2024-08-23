@@ -29,27 +29,28 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=logging.INFO)
 
-    try:
+    with SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI) as cf:
         try:
-            destinations = read_from_file(args.goalFile)
-        except:
-            logger.info("Could not find goal file {}".format(args.goalFile))
+            try:
+                destinations = read_from_file(args.goalFile)
+            except:
+                logger.info(
+                    "Could not find goal file {}".format(args.goalFile))
+                quit()
+
+            for row in destinations:
+                for goal in row:
+                    cf.swarm_take_off()
+
+                    position = np.append(
+                        goal.position, FLIGHT_ZONE.floor_offset)
+                    cf.swarm_move({DRONE_URI: position}, 0, 1.0, False)
+
+                    cf.swarm_land()
+                    input("Place goal indicator {} on drone's location and press ENTER...".format(
+                        goal.label))
+        except KeyboardInterrupt:
+            print("\nExiting...")
             quit()
-
-        cf = SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
-
-        for row in destinations:
-            for goal in row:
-                cf.swarm_take_off()
-
-                position = np.append(goal.position, FLIGHT_ZONE.floor_offset)
-                cf.swarm_move({DRONE_URI: position}, 0, 1.0, False)
-
-                cf.swarm_land()
-                input("Place goal indicator {} on drone's location and press ENTER...".format(
-                    goal.label))
-    except KeyboardInterrupt:
-        print("\nExiting...")
-        quit()
 
     logging.info("All goals placed, exiting...")
