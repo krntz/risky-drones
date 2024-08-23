@@ -182,7 +182,11 @@ def echo(sock):
                         if distance_to_current_goal < distance_to_old_goal:
                             closest_goal = (distance_to_current_goal, goal)
 
-                avg_time_per_action = statistics.fmean(action_times)
+                avg_time_per_action = None
+
+                if action_times:
+                    avg_time_per_action = statistics.fmean(action_times)
+
                 write_row_to_csv(experiment_trial,
                                  trial_time,
                                  avg_time_per_action,
