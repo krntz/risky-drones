@@ -128,7 +128,7 @@ def write_row_to_csv(experiment_trial,
            'Closest goal': closest_goal}
 
     participant_file = (PARTICIPANT_DATA_FOLDER /
-                        app.config['id']).with_suffix('.csv')
+        app.config['id']).with_suffix('.csv')
 
     with participant_file.open(mode='a', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
@@ -212,7 +212,7 @@ def echo(sock):
                     if app.config['condition'] == 'manipulation':
                         movement_distance = random.randrange(int(MOVEMENT_RANGE[0] * 100),
                                                              int(MOVEMENT_RANGE[1]
-                                                                 * 100),
+                                                             * 100),
                                                              int(MOVEMENT_STEPS * 100)) / 100
 
                     logger.info("Moving {}".format(direction))

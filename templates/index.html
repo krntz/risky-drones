@@ -4,16 +4,16 @@
         <title>Drone</title>
 
         <link rel="stylesheet" 
-              type="text/css" 
-              href="{{ url_for('static', filename='css/mystyle.css') }}"> 
+            type="text/css" 
+            href="{{ url_for('static', filename='css/mystyle.css') }}"> 
 
         <link rel="stylesheet" 
-              type="text/css" 
-              href="{{ url_for('static', filename='css/timer.css') }}"> 
+            type="text/css" 
+            href="{{ url_for('static', filename='css/timer.css') }}"> 
 
         <link rel="stylesheet" 
-              type="text/css" 
-              href="{{ url_for('static', filename='css/directional-buttons.css') }}"> 
+            type="text/css" 
+            href="{{ url_for('static', filename='css/directional-buttons.css') }}"> 
     </head>
 
     <script src="{{url_for('static', filename='serverCommunication.js')}}"></script>
@@ -24,25 +24,25 @@
             <div class="button-container">
                 <div class="base-timer">
                     <svg class="base-timer__svg" 
-                         viewBox="0 0 100 100" 
-                         xmlns="http://www.w3.org/2000/svg">
+                        viewBox="0 0 100 100" 
+                        xmlns="http://www.w3.org/2000/svg">
 
                         <g class="base-timer__circle">
 
-                        <circle class="base-timer__path-elapsed" 
+                            <circle class="base-timer__path-elapsed" 
                                 cx="50" 
                                 cy="50" 
                                 r="45"></circle>
 
-                        <path id="base-timer-path-remaining"
-                              stroke-dasharray="283"
-                              class="base-timer__path-remaining green"
-                              d="
-                                 M 50, 50
-                                 m -45, 0
-                                 a 45,45 0 1,0 90,0
-                                 a 45,45 0 1,0 -90,0
-                                 "></path>
+                            <path id="base-timer-path-remaining"
+                                stroke-dasharray="283"
+                                class="base-timer__path-remaining green"
+                                d="
+                                M 50, 50
+                                m -45, 0
+                                a 45,45 0 1,0 90,0
+                                a 45,45 0 1,0 -90,0
+                                "></path>
                         </g>
                     </svg>
                     <span id="base-timer-label" class="base-timer__label">
@@ -72,9 +72,9 @@
             </div>
             <div class="button-container2" id="btn2-container">
                 <button class="btnTO" 
-                        id="tolBtn" 
-                        value="take off" 
-                        onclick="sendMessage(this.value);">Take Off</button>
+                    id="tolBtn" 
+                    value="take off" 
+                    onclick="sendMessage(this.value);">Take Off</button>
             </div>
         </div>
         <div id="customAlert" class="custom-alert">
