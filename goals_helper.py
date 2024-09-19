@@ -12,6 +12,12 @@ class Goal:
         self._difficulty_modifier = difficulty_modifier
         self._label = label
 
+    def __repr__(self):
+        return f'Goal(position = ({self.position[0]}, {self.position[1]}), difficulty_modifier = {self.difficulty_modifier}, label = "{self.label}")'
+
+    def __string__(self):
+        return f"({self.label}: ({self.position[0]}, {self.position[1]}), {self.difficulty_modifier})"
+
     @property
     def position(self):
         return self._position
