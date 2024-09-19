@@ -1,5 +1,7 @@
 import logging
 import pickle
+import argparse
+from pathlib import Path
 
 import numpy as np
 
@@ -15,7 +17,7 @@ class Goal:
     def __repr__(self):
         return f'Goal(position = ({self.position[0]}, {self.position[1]}), difficulty_modifier = {self.difficulty_modifier}, label = "{self.label}")'
 
-    def __string__(self):
+    def __str__(self):
         return f"({self.label}: ({self.position[0]}, {self.position[1]}), {self.difficulty_modifier})"
 
     @property
@@ -45,3 +47,21 @@ def read_from_file(filename):
         goals = pickle.load(fp)
 
     return goals
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--input", dest="filename", required=False, type=Path, default="goals.bin"
+    )
+
+    args = parser.parse_args()
+
+    goals = read_from_file(args.filename)
+
+    for row in goals:
+        for goal in row:
+            print(goal)
