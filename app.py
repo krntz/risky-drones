@@ -1,5 +1,4 @@
 import argparse
-import csv
 import json
 import logging
 import math
@@ -16,6 +15,7 @@ from controllers.crazyflieController import CrazyflieController
 from controllers.simulatedController import SimulatedController
 from controllers.utils.utils import FlightZone
 from goals_helper import read_from_file
+from participant_helper import Participant
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +33,13 @@ BASE_SCORE = 10
 
 NUM_TRIALS = 10
 
-BASE_MOVEMENT_DISTANCE = 0.10
+BASE_MOVEMENT_DISTANCE = 0.25
 MOVEMENT_RANGE = (0.0, 0.40)
 MOVEMENT_STEPS = 0.05
 
-GOAL_MARGIN = 0.25  # radius (in m) around a goal considered "valid"
+GOAL_MARGIN = 0.5  # radius (in m) around a goal considered "valid"
 
 DATA_FOLDER = Path("./data")
-PARTICIPANT_DATA_FOLDER = DATA_FOLDER / "performance-data"
-LOG_FOLDER = DATA_FOLDER / "logs"
 
 DATA_FIELDNAMES = [
     "Participant ID",
@@ -54,18 +52,14 @@ DATA_FIELDNAMES = [
 ]
 
 
-def move_home(cf):
+def move_home():
     logger.info("Moving drone to home position")
 
     if not cf.swarm_flying:
         cf.swarm_take_off()
+        time.sleep(2)
 
-    drone_position = cf.positions[DRONE_URI]
-    drone_position[0] = -(drone_position[0])
-    drone_position[1] = -(drone_position[1])
-    drone_position[2] = 0
-
-    cf.swarm_move({DRONE_URI: drone_position}, None, 2, True)
+    cf.swarm_move({DRONE_URI: [0, 0, FLIGHT_ZONE.floor_offset]}, 0, 2, False)
 
     cf.swarm_land()
 
@@ -108,24 +102,6 @@ def update_score(sock, score_update):
     send_message(sock, action="score", data=SCORE)
 
 
-def write_row_to_csv(experiment_trial, trial_time, time_per_action, closest_goal):
-    row = {
-        "Participant ID": app.config["id"],
-        "Condition": app.config["condition"],
-        "Trial": experiment_trial,
-        "Score": SCORE,
-        "Avg. time per action": time_per_action,
-        "Time to complete trial": trial_time,
-        "Closest goal": closest_goal,
-    }
-
-    participant_file = (PARTICIPANT_DATA_FOLDER / app.config["id"]).with_suffix(".csv")
-
-    with participant_file.open(mode="a", newline="") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
-        writer.writerow(row)
-
-
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -139,7 +115,7 @@ def echo(sock):
         data='Welcome! This is your first flight. Your time will start when you take off. Please press "Take Off" when you are ready',
     )
 
-    cf = SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
+    move_home()
 
     experiment_trial = 0
     action_times = []
@@ -183,14 +159,15 @@ def echo(sock):
                 if action_times:
                     avg_time_per_action = statistics.fmean(action_times)
 
-                write_row_to_csv(
+                participant.write_data(
                     experiment_trial,
                     trial_time,
                     avg_time_per_action,
                     closest_goal[1].label,
+                    SCORE,
                 )
 
-                move_home(cf)
+                move_home()
                 experiment_trial += 1
                 action_times = []
 
@@ -207,7 +184,7 @@ def echo(sock):
 
                     movement_distance = BASE_MOVEMENT_DISTANCE
 
-                    if app.config["condition"] == "manipulation":
+                    if participant.condition == "manipulation":
                         movement_distance = (
                             random.randrange(
                                 int(MOVEMENT_RANGE[0] * 100),
@@ -223,17 +200,18 @@ def echo(sock):
 
                     match direction:
                         case "forward":
-                            movement = [movement_distance, 0, 0]
+                            movement = [0.0, movement_distance, 0.0]
                         case "back":
-                            movement = [-movement_distance, 0, 0]
+                            movement = [0.0, -movement_distance, 0.0]
                         case "left":
-                            movement = [0, movement_distance, 0]
+                            movement = [-movement_distance, 0.0, 0.0]
                         case "right":
-                            movement = [0, -movement_distance, 0]
+                            movement = [movement_distance, 0.0, 0.0]
                         case _:
                             raise RuntimeError("Unknown direction: " + direction)
 
-                    cf.swarm_move({DRONE_URI: movement}, None, 2.0, True)
+                    logger.info("Movement: {}".format(movement))
+                    cf.swarm_move({DRONE_URI: movement}, 0, 2.0, True)
                 else:
                     send_message(
                         sock,
@@ -249,6 +227,7 @@ def echo(sock):
                 trial_start = start_trial_timer(sock)
                 action_timer_start = time.time()
                 cf.swarm_take_off()
+                logger.info("Take off")
 
             case "land":
                 if not cf.swarm_flying:
@@ -272,9 +251,18 @@ def echo(sock):
                                 DRONE_URI, goal.position
                             )
 
+                            logger.debug(
+                                "Distance to goal {}: {}".format(
+                                    goal.label, distance_to_current_goal
+                                )
+                            )
+
                             drone_in_goal = distance_to_current_goal < GOAL_MARGIN
 
                             if drone_in_goal:
+                                logger.info(
+                                    "Drone has landed in goal: {}".format(goal.label)
+                                )
                                 closest_goal = (distance_to_current_goal, goal)
                                 new_score = BASE_SCORE * goal.difficulty_modifier
 
@@ -310,15 +298,18 @@ def echo(sock):
 
                 update_score(sock, new_score)
 
+                logger.info("Landed, points gained: {}".format(new_score))
+
                 avg_time_per_action = statistics.fmean(action_times)
-                write_row_to_csv(
+                participant.write_data(
                     experiment_trial,
                     trial_time,
                     avg_time_per_action,
                     closest_goal[1].label,
+                    SCORE,
                 )
 
-                move_home(cf)
+                move_home()
                 action_times = []
                 experiment_trial += 1
 
@@ -339,13 +330,17 @@ if __name__ == "__main__":
         "-c",
         "--condition",
         dest="condition",
-        required=True,
         choices=["control", "manipulation"],
         help="Which experimental condition to run",
     )
 
+    parser.add_argument("-i", "--id", help="The id of the current participant")
+
     parser.add_argument(
-        "-i", "--id", required=True, help="The id of the current participant"
+        "-s",
+        "--simulation",
+        action="store_true",
+        help="The generated file with goals to use",
     )
 
     parser.add_argument(
@@ -359,20 +354,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    PARTICIPANT_DATA_FOLDER.mkdir(parents=True, exist_ok=True)
-    LOG_FOLDER.mkdir(parents=True, exist_ok=True)
-
-    log_file = (LOG_FOLDER / args.id).with_suffix(".log")
-
     logging.basicConfig(
         format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
         datefmt="%H:%M:%S",
         level=logging.DEBUG,
-        handlers=[logging.FileHandler(log_file), logging.StreamHandler(sys.stdout)],
     )
-
-    app.config["condition"] = args.condition
-    app.config["id"] = args.id
 
     try:
         destinations = read_from_file(args.goalFile)
@@ -380,11 +366,13 @@ if __name__ == "__main__":
         logger.info("Could not find goal file {}".format(args.goalFile))
         quit()
 
-    participant_file = (PARTICIPANT_DATA_FOLDER / args.id).with_suffix(".csv")
+    participant = Participant(
+        id=args.id, condition=args.condition, data_fields=DATA_FIELDNAMES
+    )
 
-    with participant_file.open(mode="w", newline="") as csvfile:
-        logger.info("Creating new participant file {}".format(participant_file))
-        writer = csv.DictWriter(csvfile, fieldnames=DATA_FIELDNAMES)
-        writer.writeheader()
+    if args.simulation:
+        cf = SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
+    else:
+        cf = CrazyflieController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
 
     app.run()
