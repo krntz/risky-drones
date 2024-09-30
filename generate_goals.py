@@ -9,6 +9,13 @@ from goals_helper import Goal, write_to_file
 logger = logging.getLogger(__name__)
 
 
+def exponential_difficulty(num):
+    if num == 1:
+        return 1
+    else:
+        return max(1, exponential_difficulty(num - 1) * 2)
+
+
 def generate_goals(radius, num_arcs, num_goals, offset):
     goals = []
     goal_number = 0
@@ -31,7 +38,7 @@ def generate_goals(radius, num_arcs, num_goals, offset):
 
             label = chr(goal_number + 65)
 
-            row.append(Goal(x, y, arc, label))
+            row.append(Goal(x, y, exponential_difficulty(arc), label))
             goal_number += 1
 
         goals.append(row)
