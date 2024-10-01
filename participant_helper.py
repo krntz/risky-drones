@@ -50,13 +50,20 @@ class Participant:
             writer.writeheader()
 
     def write_data(
-        self, experiment_trial, trial_time, time_per_action, closest_goal, score
+        self,
+        experiment_trial,
+        trial_time,
+        time_per_action,
+        closest_goal,
+        score,
+        total_score,
     ):
         row = {
             "Participant ID": self.id,
             "Condition": self.condition,
             "Trial": experiment_trial,
             "Score": score,
+            "Total Score": total_score,
             "Avg. time per action": time_per_action,
             "Time to complete trial": trial_time,
             "Closest goal": closest_goal,
