@@ -1,12 +1,12 @@
 import argparse
 import json
+import csv
 import logging
 import math
+from pathlib import Path
 import random
 import statistics
-import sys
 import time
-from pathlib import Path
 
 from flask import Flask, render_template
 from flask_sock import Sock
@@ -29,27 +29,34 @@ DRONE_URI = "radio://0/80/2M/E7E7E7E7E0"
 FLIGHT_ZONE = FlightZone(2.0, 3.0, 1.25, 0.3)
 
 SCORE = 0
-BASE_SCORE = 10
+BASE_SCORE = 1
 
 NUM_TRIALS = 10
 
 BASE_MOVEMENT_DISTANCE = 0.25
-MOVEMENT_RANGE = (0.0, 0.40)
+MOVEMENT_RANGE = (0.1, 0.5)
 MOVEMENT_STEPS = 0.05
 
 GOAL_MARGIN = 0.5  # radius (in m) around a goal considered "valid"
 
 DATA_FOLDER = Path("./data")
+MOVEMENT_FOLDER = DATA_FOLDER / "movements"
 
 DATA_FIELDNAMES = [
     "Participant ID",
     "Condition",
     "Trial",
     "Score",
+    "Total Score",
     "Avg. time per action",
     "Time to complete trial",
     "Closest goal",
 ]
+
+
+def is_point_in_circle(radius, point):
+    # Check if the distance is less than or equal to the radius
+    return math.sqrt(point[0] ** 2 + point[1] ** 2) <= radius
 
 
 def move_home():
@@ -91,7 +98,7 @@ def start_trial_timer(sock):
 def stop_trial_timer(sock, start_time):
     send_message(sock, action="timer", data="stop")
 
-    return time.time() - start_time
+    return round(time.time() - start_time, 2)
 
 
 def update_score(sock, score_update):
@@ -100,6 +107,18 @@ def update_score(sock, score_update):
     SCORE += score_update
 
     send_message(sock, action="score", data=SCORE)
+
+
+def log_movements(trial, time_list, movement_list):
+    file = (MOVEMENT_FOLDER / str(participant.id) / str(trial)).with_suffix(".csv")
+
+    with file.open(mode="w", newline="") as f:
+        writer = csv.writer(f)
+
+        writer.writerow(["Time to Move", "Movement"])
+
+        for time, movement in zip(time_list, movement_list):
+            writer.writerow([time, movement])
 
 
 @app.route("/")
@@ -119,13 +138,14 @@ def echo(sock):
 
     experiment_trial = 0
     action_times = []
+    movement_list = []
+    trial_start = 0.0
+    action_timer_start = 0.0
 
     while experiment_trial < NUM_TRIALS:
         data = recieve_message(sock)
 
         action = data["action"]
-        trial_start = 0.0
-        action_timer_start = 0.0
 
         match action:
             case "out of time":
@@ -134,6 +154,8 @@ def echo(sock):
                 score_update = -BASE_SCORE
 
                 update_score(sock, score_update)
+
+                log_movements(experiment_trial, action_times, movement_list)
 
                 message = "You have run out of time, you've lost {} points! Moving drone back to home.".format(
                     abs(score_update)
@@ -164,6 +186,7 @@ def echo(sock):
                     trial_time,
                     avg_time_per_action,
                     closest_goal[1].label,
+                    score_update,
                     SCORE,
                 )
 
@@ -175,7 +198,7 @@ def echo(sock):
 
             case "move":
                 if cf.swarm_flying:
-                    action_timer_stop = time.time() - action_timer_start
+                    action_timer_stop = round(time.time() - action_timer_start, 2)
                     action_times.append(action_timer_stop)
 
                     action_timer_start = time.time()
@@ -211,6 +234,10 @@ def echo(sock):
                             raise RuntimeError("Unknown direction: " + direction)
 
                     logger.info("Movement: {}".format(movement))
+                    # movement_list.append(
+                    #    f"{','.join(map(str, cf.positions[DRONE_URI]))}"
+                    # )
+                    movement_list.append(movement)
                     cf.swarm_move({DRONE_URI: movement}, 0, 2.0, True)
                 else:
                     send_message(
@@ -228,6 +255,7 @@ def echo(sock):
                 action_timer_start = time.time()
                 cf.swarm_take_off()
                 logger.info("Take off")
+                movement_list = []
 
             case "land":
                 if not cf.swarm_flying:
@@ -235,14 +263,14 @@ def echo(sock):
 
                 trial_time = stop_trial_timer(sock, trial_start)
 
-                action_timer_stop = time.time() - action_timer_start
+                action_timer_stop = round(time.time() - action_timer_start)
                 action_times.append(action_timer_stop)
 
                 cf.swarm_land()
 
-                new_score = -BASE_SCORE
-
                 closest_goal = (math.inf, None)
+
+                point_modifier = 0
 
                 try:
                     for row in destinations:
@@ -264,18 +292,10 @@ def echo(sock):
                                     "Drone has landed in goal: {}".format(goal.label)
                                 )
                                 closest_goal = (distance_to_current_goal, goal)
-                                new_score = BASE_SCORE * goal.difficulty_modifier
-
-                                send_message(
-                                    sock,
-                                    action="alert",
-                                    data="You have gained {} points! Moving drone back to home.".format(
-                                        new_score
-                                    ),
-                                )
+                                point_modifier = goal.difficulty_modifier
 
                                 # no need to continue searching
-                                # when we've found the closest goal
+                                # when we've found we're *in* a goal
 
                                 raise StopIteration()
 
@@ -283,29 +303,40 @@ def echo(sock):
 
                             if distance_to_current_goal < distance_to_old_goal:
                                 closest_goal = (distance_to_current_goal, goal)
+                    else:
+                        logger.info("Drone has not landed in any goal!")
+                        radius = FLIGHT_ZONE.y / len(destinations)
 
+                        for i, arc in enumerate(destinations, 1):
+                            if is_point_in_circle(radius * i, cf.positions[DRONE_URI]):
+                                point_modifier = -arc[0].difficulty_modifier
                 except StopIteration:
                     pass
 
-                if new_score < 0:
-                    send_message(
-                        sock,
-                        action="alert",
-                        data="You have lost {} points! Moving drone back to home.".format(
-                            abs(new_score)
-                        ),
-                    )
+                new_score = BASE_SCORE * point_modifier
+
+                send_message(
+                    sock,
+                    action="alert",
+                    data="You scored {} points! Moving drone back to home.".format(
+                        new_score
+                    ),
+                )
 
                 update_score(sock, new_score)
+
+                log_movements(experiment_trial, action_times, movement_list)
 
                 logger.info("Landed, points gained: {}".format(new_score))
 
                 avg_time_per_action = statistics.fmean(action_times)
+                # TODO: Add the final coordinates of the drone
                 participant.write_data(
                     experiment_trial,
                     trial_time,
                     avg_time_per_action,
                     closest_goal[1].label,
+                    new_score,
                     SCORE,
                 )
 
@@ -360,6 +391,11 @@ if __name__ == "__main__":
         level=logging.DEBUG,
     )
 
+    if args.simulation:
+        cf = SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
+    else:
+        cf = CrazyflieController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
+
     try:
         destinations = read_from_file(args.goalFile)
     except FileNotFoundError:
@@ -370,9 +406,6 @@ if __name__ == "__main__":
         id=args.id, condition=args.condition, data_fields=DATA_FIELDNAMES
     )
 
-    if args.simulation:
-        cf = SimulatedController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
-    else:
-        cf = CrazyflieController({DRONE_URI}, FLIGHT_ZONE, DRONE_URI)
+    (MOVEMENT_FOLDER / participant.id).mkdir(parents=True, exist_ok=True)
 
     app.run()
