@@ -160,7 +160,7 @@ if __name__ == "__main__":
             args.width, args.height, args.num_arcs, args.num_goals, args.offset_degrees
         )
     )
-    radius = (args.height / 2) / args.num_arcs
+    radius = args.height / args.num_arcs
 
     goals = generate_goals(radius, args.num_arcs, args.num_goals, args.offset_degrees)
 
