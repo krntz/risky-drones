@@ -17,7 +17,7 @@ socket.addEventListener('message', function (event) {
             }, 8000);
             break;
         case 'alert':
-            var modalDuration = 0;
+            var modalDuration = 8000;
 
             switch(message.type) {
                 case 'no takeoff':
@@ -27,7 +27,6 @@ socket.addEventListener('message', function (event) {
 
                     break;
                 case 'na':
-                    modalDuration = 8000;
                     break;
                 default:
                     console.log("Recieved unknown type: " + message.type);
@@ -125,8 +124,7 @@ function sendMessage(actionType, parameter) {
 
             break;
         default:
-            console.log("trying to send unknown action type: " + actionType); 
+            console.log("trying to send unknown action type: " + actionType);
     }
     socket.send(message); // Send the message to the server
 }
-
