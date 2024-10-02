@@ -57,6 +57,7 @@ class Participant:
         closest_goal,
         score,
         total_score,
+        drone_position,
     ):
         row = {
             "Participant ID": self.id,
@@ -67,6 +68,7 @@ class Participant:
             "Avg. time per action": time_per_action,
             "Time to complete trial": trial_time,
             "Closest goal": closest_goal,
+            "Drone position": drone_position,
         }
 
         with self.participant_file.open(mode="a", newline="") as csvfile:
