@@ -8,6 +8,8 @@ import random
 import statistics
 import time
 
+from urllib.parse import urlencode
+
 from flask import Flask, render_template
 from flask_sock import Sock
 
@@ -34,10 +36,10 @@ BASE_SCORE = 1
 NUM_TRIALS = 10
 
 BASE_MOVEMENT_DISTANCE = 0.25
-MOVEMENT_RANGE = (0.1, 0.5)
-MOVEMENT_STEPS = 0.05
+MOVEMENT_RANGE = (0.1, 1.0)
+MOVEMENT_STEPS = 0.1
 
-GOAL_MARGIN = 0.5  # radius (in m) around a goal considered "valid"
+GOAL_MARGIN = 0.15  # radius (in m) around a goal considered "valid"
 
 DATA_FOLDER = Path("./data")
 MOVEMENT_FOLDER = DATA_FOLDER / "movements"
@@ -173,17 +175,35 @@ def echo(sock):
 
                 movement = None
 
+                drone_position = cf.positions[DRONE_URI]
                 match direction:
                     case "forward":
+                        if (drone_position[1] + movement_distance) > FLIGHT_ZONE.y:
+                            movement_distance = FLIGHT_ZONE.y - drone_position[1]
                         movement = [0.0, movement_distance, 0.0]
                     case "back":
+                        if (drone_position[1] - movement_distance) < 0.0:
+                            movement_distance = drone_position[1]
                         movement = [0.0, -movement_distance, 0.0]
                     case "left":
+                        if (drone_position[0] - movement_distance) < -(
+                            FLIGHT_ZONE.x / 2
+                        ):
+                            movement_distance = abs(
+                                -(FLIGHT_ZONE.x / 2) - drone_position[0]
+                            )
                         movement = [-movement_distance, 0.0, 0.0]
                     case "right":
+                        if (drone_position[0] + movement_distance) > (
+                            FLIGHT_ZONE.x / 2
+                        ):
+                            movement_distance = (FLIGHT_ZONE.x / 2) - drone_position[0]
                         movement = [movement_distance, 0.0, 0.0]
                     case _:
                         raise RuntimeError("Unknown direction: " + direction)
+
+                # TODO: if the resulting movement would put the drone outside
+                # the flight zone, only move to the edge of the zone
 
                 logger.info("Movement: {}".format(movement))
                 movement_list.append(f"{','.join(map(str, movement))}")
@@ -343,12 +363,16 @@ if __name__ == "__main__":
         help="The generated file with goals to use",
     )
 
+    parser.add_argument(
+        "-l", dest="survey_link", required=True, help="Link to the survey."
+    )
+
     args = parser.parse_args()
 
     logging.basicConfig(
         format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
         datefmt="%H:%M:%S",
-        level=logging.DEBUG,
+        level=logging.INFO,
     )
 
     if args.simulation:
@@ -367,5 +391,14 @@ if __name__ == "__main__":
     )
 
     (MOVEMENT_FOLDER / participant.id).mkdir(parents=True, exist_ok=True)
+
+    if not args.survey_link.endswith("&"):
+        raise ValueError("Survey link must end with &")
+
+    params = {"PID": participant.id, "CONDITION": participant.condition}
+
+    url = args.survey_link + urlencode(params)
+
+    logger.info("Survey is available at: " + url)
 
     app.run()
