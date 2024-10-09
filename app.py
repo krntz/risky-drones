@@ -355,6 +355,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-log",
+        "--log-level",
+        default="warning",
+        help="Set the log level. Example --log-level debug, default=warning",
+    )
+    parser.add_argument(
         "-g",
         "--goal-file",
         dest="goalFile",
@@ -372,7 +378,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
         datefmt="%H:%M:%S",
-        level=logging.INFO,
+        level=args.log_level.upper(),
     )
 
     if args.simulation:
@@ -392,13 +398,10 @@ if __name__ == "__main__":
 
     (MOVEMENT_FOLDER / participant.id).mkdir(parents=True, exist_ok=True)
 
-    if not args.survey_link.endswith("&"):
-        raise ValueError("Survey link must end with &")
-
     params = {"PID": participant.id, "CONDITION": participant.condition}
 
-    url = args.survey_link + urlencode(params)
+    url = args.survey_link + "&" + urlencode(params)
 
-    logger.info("Survey is available at: " + url)
+    print("Survey is available at: " + url)
 
-    app.run()
+    app.run(host="0.0.0.0")
