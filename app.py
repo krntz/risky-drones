@@ -39,8 +39,6 @@ BASE_MOVEMENT_DISTANCE = 0.25
 MOVEMENT_RANGE = (0.1, 1.0)
 MOVEMENT_STEPS = 0.1
 
-GOAL_MARGIN = 0.15  # radius (in m) around a goal considered "valid"
-
 DATA_FOLDER = Path("./data")
 MOVEMENT_FOLDER = DATA_FOLDER / "movements"
 
@@ -255,7 +253,7 @@ def echo(sock):
                             )
                         )
 
-                        drone_in_goal = distance_to_current_goal < GOAL_MARGIN
+                        drone_in_goal = distance_to_current_goal < goal.radius
 
                         if drone_in_goal:
                             logger.info(

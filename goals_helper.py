@@ -9,16 +9,17 @@ logger = logging.getLogger(__name__)
 
 
 class Goal:
-    def __init__(self, x, y, difficulty_modifier, label):
+    def __init__(self, x, y, difficulty_modifier, label, radius):
         self._position = np.array([x, y])
         self._difficulty_modifier = difficulty_modifier
         self._label = label
+        self._radius = radius
 
     def __repr__(self):
-        return f'Goal(position = ({self.position[0]}, {self.position[1]}), difficulty_modifier = {self.difficulty_modifier}, label = "{self.label}")'
+        return f'Goal(position = ({self.position[0]}, {self.position[1]}), difficulty_modifier = {self.difficulty_modifier}, label = "{self.label}", radius = {self.radius})'
 
     def __str__(self):
-        return f"({self.label}: ({self.position[0]}, {self.position[1]}), {self.difficulty_modifier})"
+        return f"({self.label}: ({self.position[0]}, {self.position[1]}), {self.difficulty_modifier}, {self.radius})"
 
     @property
     def position(self):
@@ -31,6 +32,10 @@ class Goal:
     @property
     def label(self):
         return self._label
+
+    @property
+    def radius(self):
+        return self._radius
 
 
 def write_to_file(goals, filename):

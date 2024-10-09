@@ -42,17 +42,15 @@ def generate_goals_grid(radius, num_rows, num_goals, offset, grid_size):
     orig_x = round_to_nearest_multiple(radius * math.cos(rotation), grid_size)
     orig_y = round_to_nearest_multiple(radius * math.sin(rotation), grid_size)
 
-    print(orig_x, orig_y)
-
     for r in range(1, num_rows + 1):
         x = round_to_nearest_multiple(r * 0.75 * orig_x, grid_size)
         y = round_to_nearest_multiple(r * 0.75 * orig_y, grid_size)
-        print(x, y)
+        goal_radius = round(0.035 + (r * 0.05), 4)
         row = []
-        row.append(Goal(x, y, exponential_difficulty(r), "A"))
-        row.append(Goal(y, x, exponential_difficulty(r), "B"))
-        row.append(Goal(-y, x, exponential_difficulty(r), "C"))
-        row.append(Goal(-x, y, exponential_difficulty(r), "D"))
+        row.append(Goal(x, y, exponential_difficulty(r), "A", goal_radius))
+        row.append(Goal(y, x, exponential_difficulty(r), "B", goal_radius))
+        row.append(Goal(-y, x, exponential_difficulty(r), "C", goal_radius))
+        row.append(Goal(-x, y, exponential_difficulty(r), "D", goal_radius))
 
         goals.append(row)
 
