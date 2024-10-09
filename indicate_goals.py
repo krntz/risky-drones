@@ -51,7 +51,7 @@ if __name__ == "__main__":
                     time.sleep(2)
 
                     position = np.append(goal.position, FLIGHT_ZONE.floor_offset)
-                    cf.swarm_move({DRONE_URI: position}, 0, 1.0, False)
+                    cf.swarm_move({DRONE_URI: position}, 0, 2.0, False)
 
                     cf.swarm_land()
                     time.sleep(1)
