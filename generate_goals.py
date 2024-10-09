@@ -16,7 +16,50 @@ def exponential_difficulty(num):
         return max(1, exponential_difficulty(num - 1) * 2)
 
 
-def generate_goals(radius, num_arcs, num_goals, offset):
+def round_to_nearest_multiple(number, multiple):
+    remainder = number % multiple
+    if abs(remainder) < abs(multiple) / 2:
+        return number - remainder  # Round down
+    else:
+        return (
+            number + (multiple - remainder)
+            if remainder > 0
+            else number - (multiple + remainder)
+        )  # Round up
+
+
+def invert_coordinates(coords):
+    return (coords[1], coords[0])
+
+
+def generate_goals_grid(radius, num_rows, num_goals, offset, grid_size):
+    goals = []
+
+    rotation = math.radians(offset)
+    radius = round_to_nearest_multiple(radius, grid_size)
+
+    # define the first goal
+    orig_x = round_to_nearest_multiple(radius * math.cos(rotation), grid_size)
+    orig_y = round_to_nearest_multiple(radius * math.sin(rotation), grid_size)
+
+    print(orig_x, orig_y)
+
+    for r in range(1, num_rows + 1):
+        x = round_to_nearest_multiple(r * 0.75 * orig_x, grid_size)
+        y = round_to_nearest_multiple(r * 0.75 * orig_y, grid_size)
+        print(x, y)
+        row = []
+        row.append(Goal(x, y, exponential_difficulty(r), "A"))
+        row.append(Goal(y, x, exponential_difficulty(r), "B"))
+        row.append(Goal(-y, x, exponential_difficulty(r), "C"))
+        row.append(Goal(-x, y, exponential_difficulty(r), "D"))
+
+        goals.append(row)
+
+    return goals
+
+
+def generate_goals_circles(radius, num_arcs, num_goals, offset):
     goals = []
     goal_number = 0
 
@@ -31,11 +74,10 @@ def generate_goals(radius, num_arcs, num_goals, offset):
         for p in range(num_goals):
             rotation = p * goals_separation + math.radians(offset)
 
-            x = round(radius * arc * math.cos(rotation), 2)
-            y = round(radius * arc * math.sin(rotation), 2)
+            x = radius * arc * math.cos(rotation)
+            y = radius * arc * math.sin(rotation)
 
             # assign a letter label to each goal for easy identification
-
             label = chr(goal_number + 65)
 
             row.append(Goal(x, y, exponential_difficulty(arc), label))
@@ -148,6 +190,8 @@ if __name__ == "__main__":
         help="Shows a visualization of the generated goals",
     )
 
+    parser.add_argument("-s", "--step-size", dest="step_size", type=float, default=0.25)
+
     args = parser.parse_args()
 
     # TODO: At some point I want to remove this requirement
@@ -162,7 +206,12 @@ if __name__ == "__main__":
     )
     radius = args.height / args.num_arcs
 
-    goals = generate_goals(radius, args.num_arcs, args.num_goals, args.offset_degrees)
+    # goals = generate_goals_circles(
+    #    radius, args.num_arcs, args.num_goals, args.offset_degrees
+    # )
+    goals = generate_goals_grid(
+        radius, args.num_arcs, args.num_goals, args.offset_degrees, args.step_size
+    )
 
     if args.visualize:
         visualize_goals(goals, radius, args.num_arcs)
